@@ -16,10 +16,10 @@ import org.jetbrains.bsp.bazel.server.bazel.params.BazelRunnerFlag;
 import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspAspectsManager;
 
 public class CppBuildServerService {
-  public static final int COPTS_LOCATION = 0;
-  public static final int DEFINES_LOCATION = 1;
-  public static final int LINKOPTS_LOCATION = 2;
-  public static final int LINKSHARED_LOCATION = 3;
+  private static final int COPTS_LOCATION = 0;
+  private static final int DEFINES_LOCATION = 1;
+  private static final int LINKOPTS_LOCATION = 2;
+  private static final int LINKSHARED_LOCATION = 3;
   private final BazelRunner bazelRunner;
   private static final String FETCH_CPP_TARGET_ASPECT =
       "@//.bazelbsp:aspects.bzl%get_cpp_target_info";
@@ -61,22 +61,20 @@ public class CppBuildServerService {
       return new CppOptionsItem(
           buildTargetIdentifier, ImmutableList.of(), ImmutableList.of(), ImmutableList.of());
     } else {
-      List<String> copts =
-          Arrays.stream(targetInfo.get(COPTS_LOCATION).split(",")).collect(Collectors.toList());
-      List<String> defines =
-          Arrays.stream(targetInfo.get(DEFINES_LOCATION).split(",")).collect(Collectors.toList());
-      List<String> linkopts =
-          Arrays.stream(targetInfo.get(LINKOPTS_LOCATION).split(",")).collect(Collectors.toList());
+      List<String> copts = getOptionsFromAspect(targetInfo, COPTS_LOCATION);
+      List<String> defines = getOptionsFromAspect(targetInfo, DEFINES_LOCATION);
+      List<String> linkopts = getOptionsFromAspect(targetInfo, LINKOPTS_LOCATION);
 
-      boolean linkshared = false;
-      if (targetInfo.get(LINKSHARED_LOCATION).equals("True")) {
-        linkshared = true;
-      }
+      boolean linkshared = targetInfo.get(LINKSHARED_LOCATION).equals("True");
 
       CppOptionsItem cppOptionsItem =
           new CppOptionsItem(buildTargetIdentifier, copts, defines, linkopts);
       cppOptionsItem.setLinkshared(linkshared);
       return cppOptionsItem;
     }
+  }
+
+  private List<String> getOptionsFromAspect(List<String> targetInfo, int coptsLocation) {
+    return Arrays.stream(targetInfo.get(coptsLocation).split(",")).collect(Collectors.toList());
   }
 }
