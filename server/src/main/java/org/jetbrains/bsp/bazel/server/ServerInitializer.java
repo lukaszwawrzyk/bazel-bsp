@@ -14,7 +14,7 @@ import java.util.concurrent.Executors;
 import org.jetbrains.bsp.bazel.commons.Constants;
 import org.jetbrains.bsp.bazel.projectview.model.ProjectView;
 import org.jetbrains.bsp.bazel.projectview.model.ProjectViewProvider;
-import org.jetbrains.bsp.bazel.projectview.parser.ProjectViewDefaultParserProvider;
+import org.jetbrains.bsp.bazel.projectview.parser.ProjectViewParserProvider;
 import org.jetbrains.bsp.bazel.server.bsp.BspIntegrationData;
 import org.jetbrains.bsp.bazel.server.bsp.config.BazelBspServerConfig;
 import org.jetbrains.bsp.bazel.server.bsp.config.ServerArgsProjectViewProvider;
@@ -83,6 +83,6 @@ public class ServerInitializer {
       return new ServerArgsProjectViewProvider(args[1]);
     }
 
-    return new ProjectViewDefaultParserProvider();
+    return new ProjectViewParserProvider();
   }
 }
