@@ -64,7 +64,8 @@ public class Install {
         Path rootDir = getRootDir(cmd);
         writeConfigurationFiles(rootDir, details);
 
-        System.out.println("Bazel BSP server installed in '" + rootDir.toAbsolutePath() + "'.");
+        System.out.println(
+            "Bazel BSP server installed in '" + rootDir.toAbsolutePath().normalize() + "'.");
       }
     } catch (ParseException e) {
       writer.println(e.getMessage());

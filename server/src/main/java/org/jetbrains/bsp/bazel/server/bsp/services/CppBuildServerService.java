@@ -21,11 +21,13 @@ public class CppBuildServerService {
   public static final int LINKOPTS_LOCATION = 2;
   public static final int LINKSHARED_LOCATION = 3;
   private final BazelRunner bazelRunner;
-  private static final String FETCH_CPP_TARGET_ASPECT =
-      "@//.bazelbsp:aspects.bzl%get_cpp_target_info";
+  private static final String FETCH_CPP_TARGET_ASPECT = "get_cpp_target_info";
+  private BazelBspAspectsManager bazelBspAspectsManager;
 
-  public CppBuildServerService(BazelRunner bazelRunner) {
+  public CppBuildServerService(
+      BazelRunner bazelRunner, BazelBspAspectsManager bazelBspAspectsManager) {
     this.bazelRunner = bazelRunner;
+    this.bazelBspAspectsManager = bazelBspAspectsManager;
   }
 
   public Either<ResponseError, CppOptionsResult> buildTargetCppOptions(
@@ -37,24 +39,9 @@ public class CppBuildServerService {
   }
 
   private CppOptionsItem getOptions(BuildTargetIdentifier buildTargetIdentifier) {
-    List<String> lines =
-        bazelRunner
-            .commandBuilder()
-            .build()
-            .withFlag(BazelRunnerFlag.ASPECTS, FETCH_CPP_TARGET_ASPECT)
-            .withArgument(buildTargetIdentifier.getUri())
-            .executeBazelBesCommand()
-            .getStderr();
-
     List<String> targetInfo =
-        lines.stream()
-            .map(line -> Splitter.on(" ").splitToList(line))
-            .filter(
-                parts ->
-                    parts.size() == 3
-                        && parts.get(0).equals(BazelBspAspectsManager.DEBUG_MESSAGE)
-                        && parts.get(1).contains(BazelBspAspectsManager.ASPECT_LOCATION))
-            .map(parts -> parts.get(2))
+        bazelBspAspectsManager
+            .fetchLinesFromAspect(buildTargetIdentifier.getUri(), FETCH_CPP_TARGET_ASPECT, true)
             .collect(Collectors.toList());
 
     if (targetInfo.size() != 4) {
