@@ -29,18 +29,24 @@ scala_compiler_classpath_aspect = aspect(
     implementation = _scala_compiler_classpath_impl,
 )
 
-def not_none(x):
-    return x != None
+def filter(f, xs):
+    return [x for x in xs if f(x)]
+
+def map(f, xs):
+    return [f(x) for x in xs]
 
 def map_not_none(f, xs):
-    filter(not_none, map(f, filter(not_none, xs)))
+    rs = [f(x) for x in xs if x != None]
+    return [r for r in rs if r != None]
 
 def distinct(xs):
-    seen = set()
-    return [x for x in xs if x not in seen and not seen.add(x)]
-
-def clean_list(xs):
-    distinct(filter(not_none, xs))
+    seen = dict()
+    res = []
+    for x in xs:
+        if x not in seen:
+            seen[x] = True
+            res.add(x)
+    return res
 
 def file_location(file):
     if file == None:
@@ -75,11 +81,13 @@ def get_generated_jars(provider):
     if (hasattr(provider, "java_outputs")):
         return map_not_none(to_generated_jvm_outputs, provider.java_outputs)
 
-    if hasattr(provider, "annotation_processing") and java.annotation_processing and java.annotation_processing.enabled:
-        return struct(
+    if hasattr(provider, "annotation_processing") and provider.annotation_processing and provider.annotation_processing.enabled:
+        return [struct(
            binary_jars = [file_location(provider.annotation_processing.class_jar)],
            source_jars = [file_location(provider.annotation_processing.source_jar)],
-       )
+       )]
+
+    return []
 
 def to_generated_jvm_outputs(output):
     if output == None or output.generated_class_jar == None:
@@ -105,10 +113,10 @@ def extract_java_info(target, ctx, result):
     if not provider:
         return
 
-    if hasattr(java, "java_outputs") and java.java_outputs:
-        java_outputs = java.java_outputs
-    elif hasattr(java, "outputs") and java.outputs:
-        java_outputs = java.outputs.jars
+    if hasattr(provider, "java_outputs") and provider.java_outputs:
+        java_outputs = provider.java_outputs
+    elif hasattr(provider, "outputs") and provider.outputs:
+        java_outputs = provider.outputs.jars
     else:
         return
 
@@ -134,16 +142,17 @@ def _bsp_target_info_aspect_impl(target, ctx):
         id = str(target.label),
     )
 
-    extract_java_info(result, ctx, result)
+    extract_java_info(target, ctx, result)
 
     info_file = ctx.actions.declare_file("%s-bsp-info.textproto" % target.label.name)
-    ctx.actions.write(info_file, struct(**result).to_proto())
+    ctx.actions.write(info_file, proto.encode_text(struct(**result)))
 
     return [
         OutputGroupInfo(bsp_target_info_file = [info_file]),
     ]
 
 bsp_target_info_aspect = aspect(
+    # TODO figure out attr_aspects attribute to handle transitive deps https://docs.bazel.build/versions/main/skylark/aspects.html
     implementation = _bsp_target_info_aspect_impl,
 )
 

@@ -7,11 +7,12 @@ java_library(
     srcs = glob(["*.java"]),
     visibility = ["//visibility:public"],
     deps = [
+        ":bsp_target_info_java_proto",
         "//bazelrunner",
         "//commons",
         "//projectview",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/managers",
-        ":bsp_target_info_java_proto",
+        "@com_google_protobuf//:protobuf_java",
         "@maven//:ch_epfl_scala_bsp4j",
     ],
 )
