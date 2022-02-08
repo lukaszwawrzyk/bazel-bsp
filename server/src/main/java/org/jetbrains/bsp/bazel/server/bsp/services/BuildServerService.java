@@ -59,6 +59,7 @@ import org.jetbrains.bsp.bazel.server.bsp.resolvers.QueryResolver;
 import org.jetbrains.bsp.bazel.server.bsp.resolvers.TargetRulesResolver;
 import org.jetbrains.bsp.bazel.server.bsp.resolvers.TargetsUtils;
 import org.jetbrains.bsp.bazel.server.bsp.utils.SourceRootGuesser;
+import org.jetbrains.bsp.bazel.server.sync.ProjectResolver;
 
 public class BuildServerService {
 
@@ -71,20 +72,22 @@ public class BuildServerService {
   private final BazelData bazelData;
   private final BazelRunner bazelRunner;
   private final ProjectView projectView;
+  private ProjectResolver projectResolver;
 
   public BuildServerService(
-      BazelBspServerRequestHelpers serverRequestHelpers,
-      BazelBspServerLifetime serverLifetime,
-      BazelBspServerBuildManager serverBuildManager,
-      BazelData bazelData,
-      BazelRunner bazelRunner,
-      ProjectView projectView) {
+          BazelBspServerRequestHelpers serverRequestHelpers,
+          BazelBspServerLifetime serverLifetime,
+          BazelBspServerBuildManager serverBuildManager,
+          BazelData bazelData,
+          BazelRunner bazelRunner,
+          ProjectView projectView, ProjectResolver projectResolver) {
     this.serverRequestHelpers = serverRequestHelpers;
     this.serverLifetime = serverLifetime;
     this.serverBuildManager = serverBuildManager;
     this.bazelData = bazelData;
     this.bazelRunner = bazelRunner;
     this.projectView = projectView;
+    this.projectResolver = projectResolver;
   }
 
   public CompletableFuture<InitializeBuildResult> buildInitialize(
@@ -158,7 +161,7 @@ public class BuildServerService {
 
   public CompletableFuture<WorkspaceBuildTargetsResult> workspaceBuildTargets() {
     LOGGER.info("workspaceBuildTargets call");
-
+    projectResolver.resolve();
     return serverBuildManager.getWorkspaceBuildTargets();
   }
 

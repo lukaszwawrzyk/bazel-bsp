@@ -1,10 +1,13 @@
 package org.jetbrains.bsp.bazel.server.bsp.managers;
 
 import ch.epfl.scala.bsp4j.BuildTargetIdentifier;
+import ch.epfl.scala.bsp4j.StatusCode;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
+import java.net.URI;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.jetbrains.bsp.bazel.bazelrunner.BazelRunner;
@@ -28,6 +31,19 @@ public class BazelBspAspectsManager {
     this.bazelBspCompilationManager = bazelBspCompilationManager;
     this.bazelRunner = bazelRunner;
     this.aspectsResolver = aspectResolver;
+  }
+
+  public Set<URI> fetchFilesFromOutputGroup(
+      List<BuildTargetIdentifier> targets, String aspect, String outputGroup) {
+    String aspectFlag = String.format("--aspects=%s", aspectsResolver.resolveLabel(aspect));
+    String outputGroupFlag = String.format("--output_groups=%s", outputGroup);
+    var result =
+        bazelBspCompilationManager.buildTargetsWithBep(
+            targets, ImmutableList.of(aspectFlag, outputGroupFlag, "--keep_going"));
+    if (result.isLeft() || result.getRight().getStatusCode() != StatusCode.OK) {
+      throw new RuntimeException("Failed to build");
+    }
+    return bepServer.getOutputGroups().getOrDefault(outputGroup, Collections.emptySet());
   }
 
   public List<String> fetchPathsFromOutputGroup(

@@ -29,6 +29,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.bsp.bazel.bazelrunner.data.BazelData;
@@ -57,6 +59,7 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
   private final Deque<TaskId> startedEventTaskIds = new ArrayDeque<>();
   private final Map<String, String> diagnosticsProtosLocations = new HashMap<>();
   private final Map<String, Set<Uri>> outputGroupPaths = new HashMap<>();
+  private final Map<String, Set<URI>> outputGroups = new HashMap<>();
   private final Map<String, BuildEventStreamProtos.NamedSetOfFiles> namedSetsOfFiles =
       new HashMap<>();
 
@@ -166,6 +169,7 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
   private void consumeCompletedEvent(BuildEventStreamProtos.TargetComplete targetComplete) {
     List<OutputGroup> outputGroups = targetComplete.getOutputGroupList();
     LOGGER.info("Consuming target completed event " + targetComplete);
+    storeOutputGroups(outputGroups);
     if (outputGroups.size() == 1) {
       OutputGroup outputGroup = outputGroups.get(0);
       if (outputGroup.getName().equals(Constants.SCALA_COMPILER_CLASSPATH_FILES)) {
@@ -174,10 +178,15 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
     }
   }
 
+  private void storeOutputGroups(List<OutputGroup> groups) {
+    for (var group : groups) {
+      var uris = getFilesFromOutputGroup(group).collect(Collectors.toList());
+      outputGroups.computeIfAbsent(group.getName(), key -> new HashSet<>()).addAll(uris);
+    }
+  }
+
   private void fetchScalaJars(OutputGroup outputGroup) {
-    outputGroup.getFileSetsList().stream()
-        .flatMap(fileSetId -> namedSetsOfFiles.get(fileSetId.getId()).getFilesList().stream())
-        .map(file -> URI.create(file.getUri()))
+    getFilesFromOutputGroup(outputGroup)
         .flatMap(pathProtoUri -> ClasspathParser.fromAspect(pathProtoUri).stream())
         .peek(path -> LOGGER.info("Found path " + path))
         .forEach(
@@ -187,6 +196,12 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
                     .add(
                         Uri.fromExecPath(
                             Constants.EXEC_ROOT_PREFIX + path, bazelData.getExecRoot())));
+  }
+
+  private Stream<URI> getFilesFromOutputGroup(OutputGroup group) {
+    return group.getFileSetsList().stream()
+        .flatMap(fileSetId -> namedSetsOfFiles.get(fileSetId.getId()).getFilesList().stream())
+        .map(file -> URI.create(file.getUri()));
   }
 
   private void processActionEvent(BuildEventStreamProtos.BuildEvent event) {
@@ -290,6 +305,10 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
 
   public Map<String, Set<Uri>> getOutputGroupPaths() {
     return outputGroupPaths;
+  }
+
+  public Map<String, Set<URI>> getOutputGroups() {
+    return outputGroups;
   }
 
   public Map<String, String> getDiagnosticsProtosLocations() {

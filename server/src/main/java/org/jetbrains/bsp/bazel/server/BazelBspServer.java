@@ -36,6 +36,8 @@ import org.jetbrains.bsp.bazel.server.bsp.services.JvmBuildServerService;
 import org.jetbrains.bsp.bazel.server.bsp.services.ScalaBuildServerService;
 import org.jetbrains.bsp.bazel.server.bsp.utils.InternalAspectsResolver;
 import org.jetbrains.bsp.bazel.server.loggers.BuildClientLogger;
+import org.jetbrains.bsp.bazel.server.sync.ProjectResolver;
+import org.jetbrains.bsp.bazel.server.sync.ProjectViewStore;
 
 public class BazelBspServer {
 
@@ -69,6 +71,11 @@ public class BazelBspServer {
     BazelCppTargetManager bazelCppTargetManager = new BazelCppTargetManager(bazelBspAspectsManager);
     BazelBspTargetManager bazelBspTargetManager =
         new BazelBspTargetManager(bazelRunner, bazelBspAspectsManager, bazelCppTargetManager);
+    ProjectResolver projectResolver =
+        new ProjectResolver(
+            bazelBspAspectsManager,
+            new ProjectViewStore(bazelBspServerConfig.getProjectView()),
+            bazelRunner);
     BazelBspQueryManager bazelBspQueryManager =
         new BazelBspQueryManager(
             bazelBspServerConfig.getProjectView(), bazelData, bazelRunner, bazelBspTargetManager);
@@ -89,7 +96,8 @@ public class BazelBspServer {
             serverBuildManager,
             bazelData,
             bazelRunner,
-            bazelBspServerConfig.getProjectView());
+            bazelBspServerConfig.getProjectView(),
+            projectResolver);
 
     JvmBuildServerService jvmBuildServerService = new JvmBuildServerService(bazelData, bazelRunner);
     ScalaBuildServerService scalaBuildServerService =

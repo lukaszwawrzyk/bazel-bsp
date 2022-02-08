@@ -29,6 +29,124 @@ scala_compiler_classpath_aspect = aspect(
     implementation = _scala_compiler_classpath_impl,
 )
 
+def not_none(x):
+    return x != None
+
+def map_not_none(f, xs):
+    filter(not_none, map(f, filter(not_none, xs)))
+
+def distinct(xs):
+    seen = set()
+    return [x for x in xs if x not in seen and not seen.add(x)]
+
+def clean_list(xs):
+    distinct(filter(not_none, xs))
+
+def file_location(file):
+    if file == None:
+        return None
+    return struct(path = file.path)
+
+def get_java_provider(target):
+    if hasattr(target, "scala"):
+        return target.scala
+    if hasattr(target, "kt") and hasattr(target.kt, "outputs"):
+        return target.kt
+    if JavaInfo in target:
+        return target[JavaInfo]
+    return None
+
+def get_interface_jars(output):
+    if hasattr(output, "compile_jar") and output.compile_jar:
+        return [output.compile_jar]
+    elif hasattr(output, "ijar") and output.ijar:
+        return [output.ijar]
+    else:
+        return []
+
+def get_source_jars(output):
+    if hasattr(output, "source_jars"):
+        return output.source_jars
+    if hasattr(output, "source_jar"):
+        return [output.source_jar]
+    return []
+
+def get_generated_jars(provider):
+    if (hasattr(provider, "java_outputs")):
+        return map_not_none(to_generated_jvm_outputs, provider.java_outputs)
+
+    if hasattr(provider, "annotation_processing") and java.annotation_processing and java.annotation_processing.enabled:
+        return struct(
+           binary_jars = [file_location(provider.annotation_processing.class_jar)],
+           source_jars = [file_location(provider.annotation_processing.source_jar)],
+       )
+
+def to_generated_jvm_outputs(output):
+    if output == None or output.generated_class_jar == None:
+        return None
+
+    return struct(
+        binary_jars = [file_location(output.generated_class_jar)],
+        source_jars = [file_location(output.generated_source_jar)],
+    )
+
+def to_jvm_outputs(output):
+    if output == None or output.class_jar == None:
+        return None
+
+    return struct(
+        binary_jars = [file_location(output.class_jar)],
+        interface_jars = map(file_location, get_interface_jars(output)),
+        source_jars = map(file_location, get_source_jars(output)),
+    )
+
+def extract_java_info(target, ctx, result):
+    provider = get_java_provider(target)
+    if not provider:
+        return
+
+    if hasattr(java, "java_outputs") and java.java_outputs:
+        java_outputs = java.java_outputs
+    elif hasattr(java, "outputs") and java.outputs:
+        java_outputs = java.outputs.jars
+    else:
+        return
+
+    sources = [
+        file_location(f)
+        for t in getattr(ctx.rule.attr, "srcs", [])
+        for f in t.files.to_list()
+    ]
+
+    jars = map_not_none(to_jvm_outputs, java_outputs)
+
+    generated_jars = get_generated_jars(provider)
+
+    java_info = struct(
+        sources = sources,
+        jars = jars,
+        generated_jars = generated_jars,
+    )
+    result["java_target_info"] = java_info
+
+def _bsp_target_info_aspect_impl(target, ctx):
+    result = dict(
+        id = str(target.label),
+    )
+
+    extract_java_info(result, ctx, result)
+
+    info_file = ctx.actions.declare_file("%s-bsp-info.textproto" % target.label.name)
+    ctx.actions.write(info_file, struct(**result).to_proto())
+
+    return [
+        OutputGroupInfo(bsp_target_info_file = [info_file]),
+    ]
+
+bsp_target_info_aspect = aspect(
+    implementation = _bsp_target_info_aspect_impl,
+)
+
 def _fetch_cpp_compiler(target, ctx):
     if cc_common.CcToolchainInfo in target:
         toolchain_info = target[cc_common.CcToolchainInfo]

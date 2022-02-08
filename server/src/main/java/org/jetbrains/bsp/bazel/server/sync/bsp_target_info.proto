@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package bazelbsp;
+
+option java_package = "org.jetbrains.bsp.bazel.info";
+
+message FileLocation {
+  string path = 1;
+}
+
+message JvmOutputs {
+  repeated FileLocation binary_jars = 1;
+  repeated FileLocation interface_jars = 2;
+  repeated FileLocation source_jars = 3;
+}
+
+message JavaTargetInfo {
+  repeated JvmOutputs jars = 1;
+  repeated JvmOutputs generated_jars = 2;
+  repeated FileLocation sources = 4;
+}
+
+message TargetInfo {
+  string id = 1;
+
+  JavaTargetInfo java_target_info = 1000;
+}
