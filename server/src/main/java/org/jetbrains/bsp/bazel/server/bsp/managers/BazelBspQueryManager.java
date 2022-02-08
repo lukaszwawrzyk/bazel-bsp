@@ -48,10 +48,10 @@ public class BazelBspQueryManager {
   private BepServer bepServer;
 
   public BazelBspQueryManager(
-      ProjectView projectView,
-      BazelData bazelData,
-      BazelRunner bazelRunner,
-      BazelBspTargetManager bazelBspTargetManager) {
+          ProjectView projectView,
+          BazelData bazelData,
+          BazelRunner bazelRunner,
+          BazelBspTargetManager bazelBspTargetManager) {
     this.projectView = projectView;
     this.bazelData = bazelData;
     this.bazelRunner = bazelRunner;

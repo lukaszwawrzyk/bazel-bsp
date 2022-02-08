@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package bazelbsp;
+
+option java_package = "org.jetbrains.bsp.bazel.info";
+
+message FileLocation {
+  string relative_path = 1;
+  bool is_source = 2;
+  bool is_external = 3;
+  string root_execution_path_fragment = 4;
+}
+
+message Dependency {
+  enum DependencyType {
+    COMPILE = 0;
+    RUNTIME = 1;
+  }
+
+  string id = 1;
+  DependencyType dependency_type = 2;
+}
+
+message JvmOutputs {
+  repeated FileLocation binary_jars = 1;
+  repeated FileLocation interface_jars = 2;
+  repeated FileLocation source_jars = 3;
+}
+
+message JavaTargetInfo {
+  repeated JvmOutputs jars = 1;
+  repeated JvmOutputs generated_jars = 2;
+}
+
+message JavaToolchainInfo {
+  string source_version = 1;
+  string target_version = 2;
+  FileLocation java_home = 3;
+}
+
+message TargetInfo {
+  string id = 10;
+  string kind = 20;
+  repeated string tags = 30;
+  repeated Dependency dependencies = 40;
+  repeated FileLocation sources = 50;
+  repeated FileLocation resources = 60;
+  JavaTargetInfo java_target_info = 1000;
+  JavaToolchainInfo java_toolchain_info = 2000;
+}

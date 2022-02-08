@@ -24,18 +24,27 @@ import ch.epfl.scala.bsp4j.TestResult;
 import ch.epfl.scala.bsp4j.WorkspaceBuildTargetsResult;
 import com.google.common.collect.ImmutableList;
 import java.util.concurrent.CompletableFuture;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerRequestHelpers;
 import org.jetbrains.bsp.bazel.server.bsp.services.BuildServerService;
+import org.jetbrains.bsp.bazel.server.sync.ProjectSyncService;
 
 public class BuildServerImpl implements BuildServer {
 
+  private static final Logger LOGGER = LogManager.getLogger(BuildServerImpl.class);
+
   private final BuildServerService buildServerService;
   private final BazelBspServerRequestHelpers serverRequestHelpers;
+  private final ProjectSyncService projectSyncService;
 
   public BuildServerImpl(
-      BuildServerService buildServerService, BazelBspServerRequestHelpers serverRequestHelpers) {
+      BuildServerService buildServerService,
+      BazelBspServerRequestHelpers serverRequestHelpers,
+      ProjectSyncService projectSyncService) {
     this.buildServerService = buildServerService;
     this.serverRequestHelpers = serverRequestHelpers;
+    this.projectSyncService = projectSyncService;
   }
 
   @Override
@@ -61,7 +70,9 @@ public class BuildServerImpl implements BuildServer {
 
   @Override
   public CompletableFuture<WorkspaceBuildTargetsResult> workspaceBuildTargets() {
-    return buildServerService.workspaceBuildTargets();
+    LOGGER.info("workspaceBuildTargets call");
+    return serverRequestHelpers.executeCommand(
+        "workspaceBuildTargets", projectSyncService::workspaceBuildTargets);
   }
 
   @Override
@@ -72,8 +83,9 @@ public class BuildServerImpl implements BuildServer {
 
   @Override
   public CompletableFuture<SourcesResult> buildTargetSources(SourcesParams sourcesParams) {
+    LOGGER.info("buildTargetSources call with param: {}", sourcesParams);
     return serverRequestHelpers.executeCommand(
-        "buildTargetSources", () -> buildServerService.buildTargetSources(sourcesParams));
+        "buildTargetSources", () -> projectSyncService.buildTargetSources(sourcesParams));
   }
 
   @Override
@@ -95,7 +107,7 @@ public class BuildServerImpl implements BuildServer {
   @Override
   public CompletableFuture<ResourcesResult> buildTargetResources(ResourcesParams resourcesParams) {
     return serverRequestHelpers.executeCommand(
-        "buildTargetResources", () -> buildServerService.buildTargetResources(resourcesParams));
+        "buildTargetResources", () -> projectSyncService.buildTargetResources(resourcesParams));
   }
 
   @Override

@@ -55,7 +55,7 @@ public class BazelBspJvmTargetManager extends Lazy<String> {
               .flatMap(this::getTargetFromAttribute)
               .map(Build.Target::getRule);
 
-      if (!rule.isPresent()) {
+      if (rule.isEmpty()) {
         return Optional.empty();
       }
 

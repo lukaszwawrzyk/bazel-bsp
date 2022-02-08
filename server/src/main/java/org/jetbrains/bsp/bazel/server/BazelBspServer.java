@@ -36,6 +36,10 @@ import org.jetbrains.bsp.bazel.server.bsp.services.JvmBuildServerService;
 import org.jetbrains.bsp.bazel.server.bsp.services.ScalaBuildServerService;
 import org.jetbrains.bsp.bazel.server.bsp.utils.InternalAspectsResolver;
 import org.jetbrains.bsp.bazel.server.loggers.BuildClientLogger;
+import org.jetbrains.bsp.bazel.server.sync.ProjectResolver;
+import org.jetbrains.bsp.bazel.server.sync.ProjectStore;
+import org.jetbrains.bsp.bazel.server.sync.ProjectSyncService;
+import org.jetbrains.bsp.bazel.server.sync.ProjectViewStore;
 
 public class BazelBspServer {
 
@@ -69,17 +73,21 @@ public class BazelBspServer {
     BazelCppTargetManager bazelCppTargetManager = new BazelCppTargetManager(bazelBspAspectsManager);
     BazelBspTargetManager bazelBspTargetManager =
         new BazelBspTargetManager(bazelRunner, bazelBspAspectsManager, bazelCppTargetManager);
+    ProjectResolver projectResolver =
+        new ProjectResolver(
+            bazelBspAspectsManager, new ProjectViewStore(bazelBspServerConfig.getProjectView()));
     BazelBspQueryManager bazelBspQueryManager =
         new BazelBspQueryManager(
             bazelBspServerConfig.getProjectView(), bazelData, bazelRunner, bazelBspTargetManager);
+    ProjectStore projectStore = new ProjectStore();
+    ProjectSyncService projectSyncService =
+        new ProjectSyncService(projectResolver, bazelData, projectStore);
 
     this.serverBuildManager =
         new BazelBspServerBuildManager(
-            serverRequestHelpers,
             bazelBspCompilationManager,
             bazelBspAspectsManager,
             bazelBspTargetManager,
-            bazelCppTargetManager,
             bazelBspQueryManager);
 
     BuildServerService buildServerService =
@@ -100,7 +108,7 @@ public class BazelBspServer {
         new JavaBuildServerService(
             bazelBspCompilationManager, bazelBspQueryManager, bazelData, bazelRunner);
     CppBuildServerService cppBuildServerService =
-        new CppBuildServerService(bazelRunner, bazelBspAspectsManager);
+        new CppBuildServerService(bazelBspAspectsManager);
 
     JvmBuildServer jvmBuildServer =
         new JvmBuildServerImpl(jvmBuildServerService, serverRequestHelpers);
@@ -110,7 +118,8 @@ public class BazelBspServer {
         new JavaBuildServerImpl(javaBuildServerService, serverRequestHelpers);
     CppBuildServer cppBuildServer =
         new CppBuildServerImpl(cppBuildServerService, serverRequestHelpers);
-    BuildServer buildServer = new BuildServerImpl(buildServerService, serverRequestHelpers);
+    BuildServer buildServer =
+        new BuildServerImpl(buildServerService, serverRequestHelpers, projectSyncService);
 
     this.bspImplementationHub =
         new BspImplementationHub(

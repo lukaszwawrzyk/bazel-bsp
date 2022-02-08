@@ -11,6 +11,7 @@ java_library(
         "//projectview",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bep",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp",
+        "//server/src/main/java/org/jetbrains/bsp/bazel/server/sync",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/config",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/impl",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/managers",

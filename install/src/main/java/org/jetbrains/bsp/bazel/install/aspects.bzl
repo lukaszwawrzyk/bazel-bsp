@@ -46,6 +46,346 @@ java_runtime_classpath_aspect = aspect(
     implementation = _java_runtime_classpath_impl,
 )
 
+def filter(f, xs):
+    return [x for x in xs if f(x)]
+
+def map(f, xs):
+    return [f(x) for x in xs]
+
+def map_not_none(f, xs):
+    rs = [f(x) for x in xs if x != None]
+    return [r for r in rs if r != None]
+
+def distinct(xs):
+    seen = dict()
+    res = []
+    for x in xs:
+        if x not in seen:
+            seen[x] = True
+            res.add(x)
+    return res
+
+def file_location(file):
+    if file == None:
+        return None
+
+    return to_file_location(
+        file.path,
+        file.root.path if not file.is_source else "",
+        file.is_source,
+        file.owner.workspace_root.startswith("..")
+    )
+
+def _strip_root_exec_path_fragment(path, root_fragment):
+    if root_fragment and path.startswith(root_fragment + "/"):
+        return path[len(root_fragment + "/"):]
+    return path
+
+def _strip_external_workspace_prefix(path):
+    if path.startswith("../"):
+        return "/".join(path.split("/")[2:])
+    return path
+
+def to_file_location(exec_path, root_exec_path_fragment, is_source, is_external):
+    # directory structure:
+    # exec_path = (../repo_name)? + (root_fragment)? + relative_path
+    relative_path = _strip_external_workspace_prefix(exec_path)
+    relative_path = _strip_root_exec_path_fragment(relative_path, root_exec_path_fragment)
+
+    root_exec_path_fragment = exec_path[:-(len("/" + relative_path))]
+
+    return struct(
+        relative_path = relative_path,
+        is_source = is_source,
+        is_external = is_external,
+        root_execution_path_fragment = root_exec_path_fragment,
+    )
+
+def get_java_provider(target):
+    if hasattr(target, "scala"):
+        return target.scala
+    if hasattr(target, "kt") and hasattr(target.kt, "outputs"):
+        return target.kt
+    if JavaInfo in target:
+        return target[JavaInfo]
+    return None
+
+def get_interface_jars(output):
+    if hasattr(output, "compile_jar") and output.compile_jar:
+        return [output.compile_jar]
+    elif hasattr(output, "ijar") and output.ijar:
+        return [output.ijar]
+    else:
+        return []
+
+def get_source_jars(output):
+    if hasattr(output, "source_jars"):
+        return output.source_jars
+    if hasattr(output, "source_jar"):
+        return [output.source_jar]
+    return []
+
+def get_generated_jars(provider):
+    if (hasattr(provider, "java_outputs")):
+        return map_not_none(to_generated_jvm_outputs, provider.java_outputs)
+
+    if hasattr(provider, "annotation_processing") and provider.annotation_processing and provider.annotation_processing.enabled:
+        return [struct(
+            binary_jars = [file_location(provider.annotation_processing.class_jar)],
+            source_jars = [file_location(provider.annotation_processing.source_jar)],
+        )]
+
+    return []
+
+def to_generated_jvm_outputs(output):
+    if output == None or output.generated_class_jar == None:
+        return None
+
+    return struct(
+        binary_jars = [file_location(output.generated_class_jar)],
+        source_jars = [file_location(output.generated_source_jar)],
+    )
+
+def to_jvm_outputs(output):
+    if output == None or output.class_jar == None:
+        return None
+
+    return struct(
+        binary_jars = [file_location(output.class_jar)],
+        interface_jars = map(file_location, get_interface_jars(output)),
+        source_jars = map(file_location, get_source_jars(output)),
+    )
+
+def extract_java_info(target, ctx, result):
+    provider = get_java_provider(target)
+    if not provider:
+        return
+
+    if hasattr(provider, "java_outputs") and provider.java_outputs:
+        java_outputs = provider.java_outputs
+    elif hasattr(provider, "outputs") and provider.outputs:
+        java_outputs = provider.outputs.jars
+    else:
+        return
+
+    jars = map_not_none(to_jvm_outputs, java_outputs)
+
+    generated_jars = get_generated_jars(provider)
+
+    java_info = struct(
+        jars = jars,
+        generated_jars = generated_jars,
+    )
+    result["java_target_info"] = java_info
+
+def extract_java_toolchain(target, ctx, result, dep_targets):
+    toolchain = None
+
+    if hasattr(target, "java_toolchain"):
+        toolchain = target.java_toolchain
+    elif java_common.JavaToolchainInfo != platform_common.ToolchainInfo and \
+         java_common.JavaToolchainInfo in target:
+        toolchain = target[java_common.JavaToolchainInfo]
+
+    toolchain_info = None
+    if toolchain != None:
+        toolchain_info = struct(
+            source_version = toolchain.source_version,
+            target_version = toolchain.target_version,
+            java_home = to_file_location(toolchain.java_runtime.java_home, "", False, False),
+        )
+    else:
+        for dep in dep_targets:
+            if hasattr(dep.bsp_info, "java_toolchain_info"):
+                toolchain_info = dep.bsp_info.java_toolchain_info
+                break
+
+    if toolchain_info != None:
+        result["java_toolchain_info"] = toolchain_info
+        return dict(java_toolchain_info = toolchain_info)
+    else:
+        return dict()
+
+def get_aspect_ids(ctx, target):
+    """Returns the all aspect ids, filtering out self."""
+    aspect_ids = None
+    if hasattr(ctx, "aspect_ids"):
+        aspect_ids = ctx.aspect_ids
+    elif hasattr(target, "aspect_ids"):
+        aspect_ids = target.aspect_ids
+    else:
+        return None
+    return [aspect_id for aspect_id in aspect_ids if "bsp_target_info_aspect" not in aspect_id]
+
+def abs(num):
+    if num < 0:
+        return -num
+    else:
+        return num
+
+def update_sync_output_groups(groups_dict, key, new_set):
+    update_set_in_dict(groups_dict, key + "-transitive-deps", new_set)
+    update_set_in_dict(groups_dict, key + "-outputs", new_set)
+    update_set_in_dict(groups_dict, key + "-direct-deps", new_set)
+
+def update_set_in_dict(input_dict, key, other_set):
+    input_dict[key] = depset(transitive = [input_dict.get(key, depset()), other_set])
+
+def _collect_target_from_attr(rule_attrs, attr_name, result):
+    """Collects the targets from the given attr into the result."""
+    if not hasattr(rule_attrs, attr_name):
+        return
+    attr_value = getattr(rule_attrs, attr_name)
+    type_name = type(attr_value)
+    if type_name == "Target":
+        result.append(attr_value)
+    elif type_name == "list":
+        result.extend(attr_value)
+
+def is_valid_aspect_target(target):
+    return hasattr(target, "bsp_info")
+
+def collect_targets_from_attrs(rule_attrs, attrs):
+    result = []
+    for attr_name in attrs:
+        _collect_target_from_attr(rule_attrs, attr_name, result)
+    return [target for target in result if is_valid_aspect_target(target)]
+
+COMPILE = 0
+RUNTIME = 1
+
+COMPILE_DEPS = [
+    "deps",
+    "jars",
+    "_java_toolchain",
+]
+
+RUNTIME_DEPS = [
+    "runtime_deps",
+]
+
+ALL_DEPS = COMPILE_DEPS + RUNTIME_DEPS
+
+def make_dep(dep, dependency_type):
+    return struct(
+        id = str(dep.bsp_info.id),
+        dependency_type = dependency_type,
+    )
+
+def make_deps(deps, dependency_type):
+    return [make_dep(dep, dependency_type) for dep in deps]
+
+def _is_proto_library_wrapper(target, ctx):
+    if not ctx.rule.kind.endswith("proto_library") or ctx.rule.kind == "proto_library":
+        return False
+
+    deps = collect_targets_from_attrs(ctx.rule.attr, ["deps"])
+    return len(deps) == 1 and deps[0].bsp_info and deps[0].bsp_info.kind == "proto_library"
+
+def _get_forwarded_deps(target, ctx):
+    if _is_proto_library_wrapper(target, ctx):
+        return collect_targets_from_attrs(ctx.rule.attr, ["deps"])
+    return []
+
+def _bsp_target_info_aspect_impl(target, ctx):
+    rule_attrs = ctx.rule.attr
+
+    direct_dep_targets = collect_targets_from_attrs(rule_attrs, COMPILE_DEPS)
+    direct_deps = make_deps(direct_dep_targets, COMPILE)
+
+    exported_deps_from_deps = []
+    for dep in direct_dep_targets:
+        exported_deps_from_deps = exported_deps_from_deps + dep.bsp_info.export_deps
+
+    compile_deps = direct_deps + exported_deps_from_deps
+
+    runtime_dep_targets = collect_targets_from_attrs(rule_attrs, RUNTIME_DEPS)
+    runtime_deps = make_deps(runtime_dep_targets, RUNTIME)
+
+    all_deps = depset(compile_deps + runtime_deps).to_list()
+
+    # Propagate my own exports
+    export_deps = []
+    direct_exports = []
+    if JavaInfo in target:
+        direct_exports = collect_targets_from_attrs(rule_attrs, ["exports"])
+        export_deps.extend(make_deps(direct_exports, COMPILE))
+        for export in direct_exports:
+            export_deps.extend(export.bsp_info.export_deps)
+        export_deps = depset(export_deps).to_list()
+
+    forwarded_deps = _get_forwarded_deps(target, ctx) + direct_exports
+
+    dep_targets = direct_dep_targets + runtime_dep_targets + direct_exports
+    output_groups = dict()
+    for dep in dep_targets:
+        for k, v in dep.bsp_info.output_groups.items():
+            if dep in forwarded_deps:
+                output_groups[k] = output_groups[k] + [v] if k in output_groups else [v]
+            elif k.endswith("-direct-deps"):
+                pass
+            elif k.endswith("-outputs"):
+                directs = k[:-len("outputs")] + "direct-deps"
+                output_groups[directs] = output_groups[directs] + [v] if directs in output_groups else [v]
+            else:
+                output_groups[k] = output_groups[k] + [v] if k in output_groups else [v]
+
+    for k, v in output_groups.items():
+        output_groups[k] = depset(transitive = v)
+
+    sources = [
+        file_location(f)
+        for t in getattr(ctx.rule.attr, "srcs", [])
+        for f in t.files.to_list()
+    ]
+
+    resources = [
+        file_location(f)
+        for t in getattr(ctx.rule.attr, "resources", [])
+        for f in t.files.to_list()
+    ]
+
+    result = dict(
+        id = str(target.label),
+        kind = ctx.rule.kind,
+        tags = rule_attrs.tags,
+        dependencies = list(all_deps),
+        sources = sources,
+        resources = resources,
+    )
+
+    extract_java_info(target, ctx, result)
+    java_toolchain_info = extract_java_toolchain(target, ctx, result, dep_targets)
+
+    file_name = target.label.name
+    file_name = file_name + "-" + str(abs(hash(file_name)))
+    aspect_ids = get_aspect_ids(ctx, target)
+    if aspect_ids:
+        file_name = file_name + "-" + str(abs(hash(".".join(aspect_ids))))
+    file_name = "%s.bsp-info.textproto" % file_name
+    info_file = ctx.actions.declare_file(file_name)
+    ctx.actions.write(info_file, proto.encode_text(struct(**result)))
+    update_sync_output_groups(output_groups, "bsp-target-info", depset([info_file]))
+
+    exported_properties = dict(
+        id = target.label,
+        kind = ctx.rule.kind,
+        export_deps = export_deps,
+        output_groups = output_groups,
+    )
+    exported_properties.update(java_toolchain_info)
+
+    return struct(
+        bsp_info = struct(**exported_properties),
+        output_groups = output_groups,
+    )
+
+bsp_target_info_aspect = aspect(
+    implementation = _bsp_target_info_aspect_impl,
+    required_aspect_providers = [[JavaInfo]],
+    attr_aspects = ALL_DEPS,
+)
+
 def _fetch_cpp_compiler(target, ctx):
     if cc_common.CcToolchainInfo in target:
         toolchain_info = target[cc_common.CcToolchainInfo]

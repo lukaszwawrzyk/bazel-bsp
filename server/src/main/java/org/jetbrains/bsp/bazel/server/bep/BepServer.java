@@ -21,7 +21,6 @@ import com.google.devtools.build.v1.PublishLifecycleEventRequest;
 import com.google.protobuf.Empty;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
@@ -63,8 +62,7 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
   private final Deque<TaskId> startedEventTaskIds = new ArrayDeque<>();
   private final Map<String, String> diagnosticsProtosLocations = new HashMap<>();
   private final Map<String, Set<Uri>> outputGroupPaths = new HashMap<>();
-  private final Map<String, BuildEventStreamProtos.NamedSetOfFiles> namedSetsOfFiles =
-      new HashMap<>();
+  private BepOutput bepOutput = new BepOutput();
 
   public BepServer(
       BazelData bazelData, BuildClient bspClient, BuildClientLogger buildClientLogger) {
@@ -77,7 +75,6 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
   @Override
   public void publishLifecycleEvent(
       PublishLifecycleEventRequest request, StreamObserver<Empty> responseObserver) {
-    namedSetsOfFiles.clear();
     responseObserver.onNext(Empty.getDefaultInstance());
     responseObserver.onCompleted();
   }
@@ -119,7 +116,7 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
 
   private void fetchNamedSet(BuildEventStreamProtos.BuildEvent event) {
     if (event.getId().hasNamedSet()) {
-      namedSetsOfFiles.put(event.getId().getNamedSet().getId(), event.getNamedSetOfFiles());
+      bepOutput.storeNamedSet(event.getId().getNamedSet().getId(), event.getNamedSetOfFiles());
     }
   }
 
@@ -131,6 +128,7 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
   }
 
   private void consumeBuildStartedEvent(BuildEventStreamProtos.BuildStarted buildStarted) {
+    bepOutput = new BepOutput();
     TaskId taskId = new TaskId(buildStarted.getUuid());
     TaskStartParams startParams = new TaskStartParams(taskId);
     startParams.setEventTime(buildStarted.getStartTimeMillis());
@@ -165,13 +163,16 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
 
   private void processCompletedEvent(BuildEventStreamProtos.BuildEvent event) {
     if (event.hasCompleted()) {
-      consumeCompletedEvent(event.getCompleted());
+      consumeCompletedEvent(event);
     }
   }
 
-  private void consumeCompletedEvent(BuildEventStreamProtos.TargetComplete targetComplete) {
-    List<OutputGroup> outputGroups = targetComplete.getOutputGroupList();
+  private void consumeCompletedEvent(BuildEventStreamProtos.BuildEvent event) {
+    var label = event.getId().getTargetCompleted().getLabel();
+    var targetComplete = event.getCompleted();
+    var outputGroups = targetComplete.getOutputGroupList();
     LOGGER.info("Consuming target completed event " + targetComplete);
+    bepOutput.storeTargetOutputGroups(label, outputGroups);
     if (outputGroups.size() == 1) {
       OutputGroup outputGroup = outputGroups.get(0);
       if (EXPECTED_OUTPUT_GROUPS.contains(outputGroup.getName())) {
@@ -181,9 +182,7 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
   }
 
   private void fetchOutputGroup(OutputGroup outputGroup) {
-    outputGroup.getFileSetsList().stream()
-        .flatMap(fileSetId -> namedSetsOfFiles.get(fileSetId.getId()).getFilesList().stream())
-        .map(file -> URI.create(file.getUri()))
+    this.bepOutput.getFilesFromOutputGroup(outputGroup)
         .flatMap(pathProtoUri -> ClasspathParser.fromAspect(pathProtoUri).stream())
         .peek(path -> LOGGER.info("Found path " + path))
         .forEach(
@@ -304,6 +303,10 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
 
   public Map<String, Set<Uri>> getOutputGroupPaths() {
     return outputGroupPaths;
+  }
+
+  public BepOutput getBepOutput() {
+    return bepOutput;
   }
 
   public Map<String, String> getDiagnosticsProtosLocations() {
