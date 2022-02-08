@@ -40,7 +40,7 @@ public class BazelRunner {
             "Failed to run bazel info workspace. Make sure that the project is created inside a"
                 + " bazel workspace");
       }
-      return new File(result.getStdout().get(0));
+      return new File(result.getStdoutLines().get(0));
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

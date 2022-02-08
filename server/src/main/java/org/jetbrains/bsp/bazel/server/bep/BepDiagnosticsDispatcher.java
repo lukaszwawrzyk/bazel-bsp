@@ -7,7 +7,6 @@ import ch.epfl.scala.bsp4j.DiagnosticSeverity;
 import ch.epfl.scala.bsp4j.Position;
 import ch.epfl.scala.bsp4j.PublishDiagnosticsParams;
 import ch.epfl.scala.bsp4j.Range;
-import ch.epfl.scala.bsp4j.SourceItem;
 import ch.epfl.scala.bsp4j.TextDocumentIdentifier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -17,6 +16,7 @@ import io.bazel.rules_scala.diagnostics.Diagnostics.FileDiagnostics;
 import io.bazel.rules_scala.diagnostics.Diagnostics.Severity;
 import io.bazel.rules_scala.diagnostics.Diagnostics.TargetDiagnostics;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -45,7 +45,7 @@ public class BepDiagnosticsDispatcher {
   private final BazelData bazelData;
   private final BuildClient bspClient;
 
-  private final Map<BuildTargetIdentifier, List<SourceItem>> buildTargetsSources = new HashMap<>();
+  private final Map<BuildTargetIdentifier, List<URI>> buildTargetsSources = new HashMap<>();
 
   public BepDiagnosticsDispatcher(BazelData bazelData, BuildClient bspClient) {
     this.bazelData = bazelData;
@@ -72,7 +72,7 @@ public class BepDiagnosticsDispatcher {
   public void emitDiagnostics(
       Map<Uri, List<PublishDiagnosticsParams>> filesToDiagnostics, BuildTargetIdentifier target) {
     buildTargetsSources.getOrDefault(target, ImmutableList.of()).stream()
-        .map(source -> Uri.fromFileUri(source.getUri()))
+        .map(source -> Uri.fromFileUri(source.toString()))
         .forEach(sourceUri -> addSourceAndPublish(sourceUri, filesToDiagnostics, target));
   }
 
@@ -131,7 +131,7 @@ public class BepDiagnosticsDispatcher {
     return Uri.fromExecOrWorkspacePath(path, bazelData.getExecRoot(), bazelData.getWorkspaceRoot());
   }
 
-  public Map<BuildTargetIdentifier, List<SourceItem>> getBuildTargetsSources() {
+  public Map<BuildTargetIdentifier, List<URI>> getBuildTargetsSources() {
     return buildTargetsSources;
   }
 }

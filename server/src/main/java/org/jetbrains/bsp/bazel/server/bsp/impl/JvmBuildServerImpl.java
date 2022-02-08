@@ -7,17 +7,16 @@ import ch.epfl.scala.bsp4j.JvmTestEnvironmentParams;
 import ch.epfl.scala.bsp4j.JvmTestEnvironmentResult;
 import java.util.concurrent.CompletableFuture;
 import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerRequestHelpers;
-import org.jetbrains.bsp.bazel.server.bsp.services.JvmBuildServerService;
+import org.jetbrains.bsp.bazel.server.sync.ProjectSyncService;
 
 public class JvmBuildServerImpl implements JvmBuildServer {
 
-  private final JvmBuildServerService jvmBuildServerService;
+  private final ProjectSyncService projectSyncService;
   private final BazelBspServerRequestHelpers serverRequestHelpers;
 
   public JvmBuildServerImpl(
-      JvmBuildServerService jvmBuildServerService,
-      BazelBspServerRequestHelpers serverRequestHelpers) {
-    this.jvmBuildServerService = jvmBuildServerService;
+      ProjectSyncService projectSyncService, BazelBspServerRequestHelpers serverRequestHelpers) {
+    this.projectSyncService = projectSyncService;
     this.serverRequestHelpers = serverRequestHelpers;
   }
 
@@ -25,13 +24,13 @@ public class JvmBuildServerImpl implements JvmBuildServer {
   public CompletableFuture<JvmRunEnvironmentResult> jvmRunEnvironment(
       JvmRunEnvironmentParams params) {
     return serverRequestHelpers.executeCommand(
-        "jvmRunEnvironment", () -> jvmBuildServerService.jvmRunEnvironment(params));
+        "jvmRunEnvironment", () -> projectSyncService.jvmRunEnvironment(params));
   }
 
   @Override
   public CompletableFuture<JvmTestEnvironmentResult> jvmTestEnvironment(
       JvmTestEnvironmentParams params) {
     return serverRequestHelpers.executeCommand(
-        "jvmTestEnvironment", () -> jvmBuildServerService.jvmTestEnvironment(params));
+        "jvmTestEnvironment", () -> projectSyncService.jvmTestEnvironment(params));
   }
 }

@@ -13,7 +13,6 @@ import org.jetbrains.bsp.bazel.bazelrunner.BazelDataResolver;
 import org.jetbrains.bsp.bazel.bazelrunner.BazelRunner;
 import org.jetbrains.bsp.bazel.bazelrunner.data.BazelData;
 import org.jetbrains.bsp.bazel.server.bep.BepServer;
-import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerBuildManager;
 import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerLifetime;
 import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerRequestHelpers;
 import org.jetbrains.bsp.bazel.server.bsp.BspImplementationHub;
@@ -26,16 +25,24 @@ import org.jetbrains.bsp.bazel.server.bsp.impl.JvmBuildServerImpl;
 import org.jetbrains.bsp.bazel.server.bsp.impl.ScalaBuildServerImpl;
 import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspAspectsManager;
 import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspCompilationManager;
-import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspQueryManager;
-import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspTargetManager;
-import org.jetbrains.bsp.bazel.server.bsp.managers.BazelCppTargetManager;
 import org.jetbrains.bsp.bazel.server.bsp.services.BuildServerService;
 import org.jetbrains.bsp.bazel.server.bsp.services.CppBuildServerService;
-import org.jetbrains.bsp.bazel.server.bsp.services.JavaBuildServerService;
-import org.jetbrains.bsp.bazel.server.bsp.services.JvmBuildServerService;
-import org.jetbrains.bsp.bazel.server.bsp.services.ScalaBuildServerService;
 import org.jetbrains.bsp.bazel.server.bsp.utils.InternalAspectsResolver;
 import org.jetbrains.bsp.bazel.server.loggers.BuildClientLogger;
+import org.jetbrains.bsp.bazel.server.sync.BazelPathsResolver;
+import org.jetbrains.bsp.bazel.server.sync.BazelProjectMapper;
+import org.jetbrains.bsp.bazel.server.sync.BepServerProjectListener;
+import org.jetbrains.bsp.bazel.server.sync.BspProjectMapper;
+import org.jetbrains.bsp.bazel.server.sync.ExecuteService;
+import org.jetbrains.bsp.bazel.server.sync.ProjectProvider;
+import org.jetbrains.bsp.bazel.server.sync.ProjectResolver;
+import org.jetbrains.bsp.bazel.server.sync.ProjectSyncService;
+import org.jetbrains.bsp.bazel.server.sync.ProjectViewProvider;
+import org.jetbrains.bsp.bazel.server.sync.TargetKindResolver;
+import org.jetbrains.bsp.bazel.server.sync.languages.LanguagePluginsService;
+import org.jetbrains.bsp.bazel.server.sync.languages.cpp.CppLanguagePlugin;
+import org.jetbrains.bsp.bazel.server.sync.languages.java.JavaLanguagePlugin;
+import org.jetbrains.bsp.bazel.server.sync.languages.scala.ScalaLanguagePlugin;
 
 public class BazelBspServer {
 
@@ -44,7 +51,8 @@ public class BazelBspServer {
   private final BazelData bazelData;
 
   private BspImplementationHub bspImplementationHub;
-  private BazelBspServerBuildManager serverBuildManager;
+  private BazelBspCompilationManager bazelBspCompilationManager;
+  private ProjectProvider projectProvider;
 
   public BazelBspServer(BazelBspServerConfig bazelBspServerConfig) {
     this.bazelBspServerConfig = bazelBspServerConfig;
@@ -66,52 +74,44 @@ public class BazelBspServer {
     BazelBspAspectsManager bazelBspAspectsManager =
         new BazelBspAspectsManager(
             bazelBspCompilationManager, bazelRunner, internalAspectsResolver);
-    BazelCppTargetManager bazelCppTargetManager = new BazelCppTargetManager(bazelBspAspectsManager);
-    BazelBspTargetManager bazelBspTargetManager =
-        new BazelBspTargetManager(
-            bazelRunner, bazelData, bazelBspAspectsManager, bazelCppTargetManager);
-    BazelBspQueryManager bazelBspQueryManager =
-        new BazelBspQueryManager(
-            bazelBspServerConfig.getProjectView(), bazelData, bazelRunner, bazelBspTargetManager);
-
-    this.serverBuildManager =
-        new BazelBspServerBuildManager(
-            serverRequestHelpers,
-            bazelBspCompilationManager,
+    BazelPathsResolver bazelPathsResolver = new BazelPathsResolver(bazelData);
+    JavaLanguagePlugin javaLanguagePlugin = new JavaLanguagePlugin(bazelPathsResolver, bazelData);
+    ScalaLanguagePlugin scalaLanguagePlugin =
+        new ScalaLanguagePlugin(javaLanguagePlugin, bazelPathsResolver);
+    CppLanguagePlugin cppLanguagePlugin = new CppLanguagePlugin();
+    LanguagePluginsService languagePluginsService =
+        new LanguagePluginsService(scalaLanguagePlugin, javaLanguagePlugin, cppLanguagePlugin);
+    TargetKindResolver targetKindResolver = new TargetKindResolver();
+    BazelProjectMapper bazelProjectMapper =
+        new BazelProjectMapper(languagePluginsService, bazelPathsResolver, targetKindResolver);
+    ProjectResolver projectResolver =
+        new ProjectResolver(
             bazelBspAspectsManager,
-            bazelBspTargetManager,
-            bazelCppTargetManager,
-            bazelBspQueryManager);
+            new ProjectViewProvider(bazelBspServerConfig.getProjectView()),
+            bazelProjectMapper);
+    this.projectProvider = new ProjectProvider(projectResolver);
+    BspProjectMapper bspProjectMapper = new BspProjectMapper(languagePluginsService);
+    ProjectSyncService projectSyncService =
+        new ProjectSyncService(bspProjectMapper, projectProvider);
+
+    ExecuteService executeService =
+        new ExecuteService(bazelBspCompilationManager, projectProvider, bazelRunner);
 
     BuildServerService buildServerService =
-        new BuildServerService(
-            serverRequestHelpers,
-            serverLifetime,
-            serverBuildManager,
-            bazelData,
-            bazelRunner,
-            bazelBspServerConfig.getProjectView());
+        new BuildServerService(serverRequestHelpers, serverLifetime, executeService);
 
-    JvmBuildServerService jvmBuildServerService =
-        new JvmBuildServerService(bazelData, bazelRunner, bazelBspAspectsManager);
-    ScalaBuildServerService scalaBuildServerService =
-        new ScalaBuildServerService(
-            bazelData, bazelRunner, bazelBspCompilationManager, bazelBspQueryManager);
-    JavaBuildServerService javaBuildServerService =
-        new JavaBuildServerService(
-            bazelBspCompilationManager, bazelBspQueryManager, bazelData, bazelRunner);
-    CppBuildServerService cppBuildServerService =
-        new CppBuildServerService(bazelRunner, bazelBspAspectsManager);
+    CppBuildServerService cppBuildServerService = new CppBuildServerService(bazelBspAspectsManager);
 
     JvmBuildServer jvmBuildServer =
-        new JvmBuildServerImpl(jvmBuildServerService, serverRequestHelpers);
+        new JvmBuildServerImpl(projectSyncService, serverRequestHelpers);
     ScalaBuildServer scalaBuildServer =
-        new ScalaBuildServerImpl(scalaBuildServerService, serverRequestHelpers);
+        new ScalaBuildServerImpl(serverRequestHelpers, projectSyncService);
     JavaBuildServer javaBuildServer =
-        new JavaBuildServerImpl(javaBuildServerService, serverRequestHelpers);
+        new JavaBuildServerImpl(projectSyncService, serverRequestHelpers);
     CppBuildServer cppBuildServer =
         new CppBuildServerImpl(cppBuildServerService, serverRequestHelpers);
-    BuildServer buildServer = new BuildServerImpl(buildServerService, serverRequestHelpers);
+    BuildServer buildServer =
+        new BuildServerImpl(buildServerService, serverRequestHelpers, projectSyncService);
 
     this.bspImplementationHub =
         new BspImplementationHub(
@@ -135,7 +135,8 @@ public class BazelBspServer {
     BuildClientLogger buildClientLogger = new BuildClientLogger(launcher.getRemoteProxy());
 
     BepServer bepServer = new BepServer(bazelData, launcher.getRemoteProxy(), buildClientLogger);
-    serverBuildManager.setBepServer(bepServer);
+    bazelBspCompilationManager.setBepServer(bepServer);
+    projectProvider.addListener(new BepServerProjectListener(bepServer));
     bazelRunner.setLogger(buildClientLogger);
 
     bspIntegrationData.setServer(ServerBuilder.forPort(0).addService(bepServer).build());

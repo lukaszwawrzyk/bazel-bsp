@@ -26,11 +26,15 @@ public class BazelProcessResult {
     return ExitCodeMapper.mapExitCode(exitCode);
   }
 
-  public List<String> getStdout() {
+  public List<String> getStdoutLines() {
     return stdout.get();
   }
 
-  public String getJoinedStderr() {
+  public String getStdout() {
+    return String.join(LINES_DELIMITER, getStdoutLines());
+  }
+
+  public String getStderr() {
     List<String> lines = stderr.get();
     return String.join(LINES_DELIMITER, lines);
   }
