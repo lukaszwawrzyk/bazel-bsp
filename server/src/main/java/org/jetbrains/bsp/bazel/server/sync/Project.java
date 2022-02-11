@@ -1,6 +1,6 @@
 package org.jetbrains.bsp.bazel.server.sync;
 
-import java.util.Map;
+import io.vavr.collection.Map;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.TargetInfo;
 
 public class Project {

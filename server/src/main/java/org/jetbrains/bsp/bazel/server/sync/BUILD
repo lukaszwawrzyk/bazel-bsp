@@ -14,6 +14,7 @@ java_library(
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/managers",
         "@com_google_protobuf//:protobuf_java",
         "@maven//:ch_epfl_scala_bsp4j",
+        "@maven//:io_vavr_vavr",
     ],
 )
 

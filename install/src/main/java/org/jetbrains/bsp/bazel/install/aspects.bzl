@@ -155,7 +155,7 @@ def abs(num):
         return num
 
 def update_sync_output_groups(groups_dict, key, new_set):
-    update_set_in_dict(groups_dict, key + "-transitive", new_set)
+    update_set_in_dict(groups_dict, key + "-transitive-deps", new_set)
     update_set_in_dict(groups_dict, key + "-outputs", new_set)
     update_set_in_dict(groups_dict, key + "-direct-deps", new_set)
 
@@ -187,8 +187,8 @@ RUNTIME = 1
 
 def make_dep(dep, dependency_type):
     return struct(
+        id = str(dep.bsp_info.id),
         type = dependency_type,
-        id = dep.bsp_info.id,
     )
 
 def make_deps(deps, dependency_type):
@@ -207,10 +207,6 @@ def _get_forwarded_deps(target, ctx):
     return []
 
 def _bsp_target_info_aspect_impl(target, ctx):
-    result = dict(
-        id = str(target.label),
-    )
-
     rule_attrs = ctx.rule.attr
 
     direct_dep_targets = collect_targets_from_attrs(rule_attrs, ["deps", "jars"])
@@ -255,6 +251,11 @@ def _bsp_target_info_aspect_impl(target, ctx):
 
     for k, v in output_groups.items():
         output_groups[k] = depset(transitive = v)
+
+    result = dict(
+        id = str(target.label),
+        dependencies = list(all_deps)
+    )
 
     extract_java_info(target, ctx, result)
 

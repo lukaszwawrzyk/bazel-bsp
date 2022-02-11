@@ -8,6 +8,16 @@ message FileLocation {
   string path = 1;
 }
 
+message Dependency {
+  enum DependencyType {
+    COMPILE = 0;
+    RUNTIME = 1;
+  }
+
+  string id = 1;
+  DependencyType type = 2;
+}
+
 message JvmOutputs {
   repeated FileLocation binary_jars = 1;
   repeated FileLocation interface_jars = 2;
@@ -23,5 +33,6 @@ message JavaTargetInfo {
 message TargetInfo {
   string id = 1;
 
+  repeated Dependency dependencies = 10;
   JavaTargetInfo java_target_info = 1000;
 }
