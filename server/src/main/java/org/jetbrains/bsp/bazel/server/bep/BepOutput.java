@@ -18,7 +18,7 @@ import java.util.stream.Stream;
 public class BepOutput {
   private final Map<String, Set<String>> outputGroups = new HashMap<>();
   private final Map<String, NamedSetOfFiles> fileSets = new HashMap<>();
-  private final List<String> rootTargets = new ArrayList<>();
+  private final Set<String> rootTargets = new ArrayList<>();
 
   public void reset() {
     fileSets.clear();
@@ -59,30 +59,23 @@ public class BepOutput {
     var toVisit = Queues.newArrayDeque(rootIds);
     var visited = new HashSet<String>();
 
-    rootIds.forEach(id -> visit(id, visited, result));
     while (!toVisit.isEmpty()) {
       var fileSetId = toVisit.remove();
       var fileSet = fileSets.get(fileSetId);
+
+      fileSets.get(fileSetId).getFilesList().stream()
+          .map(API.unchecked(s -> new URI(s.getUri())))
+          .forEach(result::add);
+      visited.add(fileSetId);
+
       var children = fileSet.getFileSetsList();
       children.stream()
           .map(BuildEventId.NamedSetOfFilesId::getId)
           .filter(child -> !visited.contains(child))
-          .forEach(
-              child ->{
-                visit(child, visited, result);
-                toVisit.add(child);
-              }
-          );
+          .forEach(toVisit::add);
     }
 
     return result;
-  }
-
-  private void visit(String id, Set<String> visited, Set<URI> result) {
-    fileSets.get(id).getFilesList().stream()
-            .map(API.unchecked(s -> new URI(s.getUri())))
-            .forEach(result::add);
-    visited.add(id);
   }
 
   public List<String> getRootTargets() {
