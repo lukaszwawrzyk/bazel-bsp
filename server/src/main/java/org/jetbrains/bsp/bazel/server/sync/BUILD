@@ -11,6 +11,7 @@ java_library(
         "//bazelrunner",
         "//commons",
         "//projectview",
+        "//server/src/main/java/org/jetbrains/bsp/bazel/server/bep",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/managers",
         "@com_google_protobuf//:protobuf_java",
         "@maven//:ch_epfl_scala_bsp4j",

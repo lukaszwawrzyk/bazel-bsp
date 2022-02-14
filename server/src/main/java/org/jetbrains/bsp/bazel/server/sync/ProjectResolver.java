@@ -34,14 +34,19 @@ public class ProjectResolver {
     var projectTargetRoots =
         List.ofAll(projectView.getTargets().getIncludedTargets()).map(BuildTargetIdentifier::new);
 
-    var files =
+    var outputGroup = "bsp-target-info-transitive-deps";
+    var output =
         bazelBspAspectsManager.fetchFilesFromOutputGroup(
-            projectTargetRoots.asJava(), "bsp_target_info_aspect", "bsp-target-info-transitive-deps");
+            projectTargetRoots.asJava(), "bsp_target_info_aspect", outputGroup);
+
+    var files = output.getFilesByOutputGroupNameTransitive(outputGroup);
+    var rootTargets = output.getRootTargets();
+
     var targetInfos =
         List.ofAll(files)
             .map(API.unchecked(this::readTargetInfoFromFile))
             .toMap(TargetInfo::getId, Function.identity());
-    return new Project(targetInfos);
+    return new Project(rootTargets, targetInfos);
   }
 
   private TargetInfo readTargetInfoFromFile(URI uri) throws IOException {

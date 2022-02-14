@@ -188,7 +188,7 @@ RUNTIME = 1
 def make_dep(dep, dependency_type):
     return struct(
         id = str(dep.bsp_info.id),
-        type = dependency_type,
+        dependency_type = dependency_type,
     )
 
 def make_deps(deps, dependency_type):

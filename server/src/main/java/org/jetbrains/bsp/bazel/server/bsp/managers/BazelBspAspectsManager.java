@@ -13,6 +13,7 @@ import java.util.stream.Stream;
 import org.jetbrains.bsp.bazel.bazelrunner.BazelRunner;
 import org.jetbrains.bsp.bazel.bazelrunner.params.BazelRunnerFlag;
 import org.jetbrains.bsp.bazel.commons.Uri;
+import org.jetbrains.bsp.bazel.server.bep.BepOutput;
 import org.jetbrains.bsp.bazel.server.bep.BepServer;
 import org.jetbrains.bsp.bazel.server.bsp.utils.InternalAspectsResolver;
 
@@ -33,7 +34,7 @@ public class BazelBspAspectsManager {
     this.aspectsResolver = aspectResolver;
   }
 
-  public Set<URI> fetchFilesFromOutputGroup(
+  public BepOutput fetchFilesFromOutputGroup(
       List<BuildTargetIdentifier> targets, String aspect, String outputGroup) {
     String aspectFlag = String.format("--aspects=%s", aspectsResolver.resolveLabel(aspect));
     String outputGroupFlag = String.format("--output_groups=%s", outputGroup);
@@ -43,7 +44,7 @@ public class BazelBspAspectsManager {
     if (result.isLeft() || result.getRight().getStatusCode() != StatusCode.OK) {
       throw new RuntimeException("Failed to build");
     }
-    return bepServer.getOutputGroups().getOrDefault(outputGroup, Collections.emptySet());
+    return bepServer.getBepOutput();
   }
 
   public List<String> fetchPathsFromOutputGroup(

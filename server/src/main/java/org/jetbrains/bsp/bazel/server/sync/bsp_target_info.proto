@@ -15,7 +15,7 @@ message Dependency {
   }
 
   string id = 1;
-  DependencyType type = 2;
+  DependencyType dependency_type = 2;
 }
 
 message JvmOutputs {
