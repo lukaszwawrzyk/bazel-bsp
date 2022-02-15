@@ -78,7 +78,7 @@ public class BazelBspServer {
     BazelBspQueryManager bazelBspQueryManager =
         new BazelBspQueryManager(
             bazelBspServerConfig.getProjectView(), bazelData, bazelRunner, bazelBspTargetManager);
-    ProjectSyncService projectSyncService = new ProjectSyncService(projectResolver);
+    ProjectSyncService projectSyncService = new ProjectSyncService(projectResolver, bazelData);
 
     this.serverBuildManager =
         new BazelBspServerBuildManager(

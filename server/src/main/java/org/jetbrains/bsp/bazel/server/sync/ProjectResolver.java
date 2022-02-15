@@ -3,14 +3,15 @@ package org.jetbrains.bsp.bazel.server.sync;
 import ch.epfl.scala.bsp4j.BuildTargetIdentifier;
 import com.google.protobuf.TextFormat;
 import io.vavr.API;
+import io.vavr.collection.HashSet;
 import io.vavr.collection.List;
+import io.vavr.collection.Set;
 import java.io.IOException;
 import java.net.URI;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.function.Function;
-import org.jetbrains.bsp.bazel.bazelrunner.BazelRunner;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.TargetInfo;
 import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspAspectsManager;
 
@@ -19,8 +20,7 @@ public class ProjectResolver {
   private final ProjectViewStore projectViewStore;
 
   public ProjectResolver(
-          BazelBspAspectsManager bazelBspAspectsManager,
-          ProjectViewStore projectViewStore) {
+      BazelBspAspectsManager bazelBspAspectsManager, ProjectViewStore projectViewStore) {
     this.bazelBspAspectsManager = bazelBspAspectsManager;
     this.projectViewStore = projectViewStore;
   }
@@ -43,7 +43,8 @@ public class ProjectResolver {
         List.ofAll(files)
             .map(API.unchecked(this::readTargetInfoFromFile))
             .toMap(TargetInfo::getId, Function.identity());
-    return new Project(rootTargets, targetInfos);
+
+    return new Project(HashSet.ofAll(rootTargets), targetInfos);
   }
 
   private TargetInfo readTargetInfoFromFile(URI uri) throws IOException {

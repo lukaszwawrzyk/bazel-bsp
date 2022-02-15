@@ -120,18 +120,11 @@ def extract_java_info(target, ctx, result):
     else:
         return
 
-    sources = [
-        file_location(f)
-        for t in getattr(ctx.rule.attr, "srcs", [])
-        for f in t.files.to_list()
-    ]
-
     jars = map_not_none(to_jvm_outputs, java_outputs)
 
     generated_jars = get_generated_jars(provider)
 
     java_info = struct(
-        sources = sources,
         jars = jars,
         generated_jars = generated_jars,
     )
@@ -252,11 +245,20 @@ def _bsp_target_info_aspect_impl(target, ctx):
     for k, v in output_groups.items():
         output_groups[k] = depset(transitive = v)
 
+    sources = [
+        file_location(f)
+        for t in getattr(ctx.rule.attr, "srcs", [])
+        for f in t.files.to_list()
+    ]
+
     result = dict(
         id = str(target.label),
+        kind = ctx.rule.kind,
         tags = rule_attrs.tags,
         dependencies = list(all_deps),
+        sources = sources,
     )
+
 
     extract_java_info(target, ctx, result)
 

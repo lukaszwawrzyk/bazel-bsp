@@ -27,13 +27,13 @@ message JvmOutputs {
 message JavaTargetInfo {
   repeated JvmOutputs jars = 1;
   repeated JvmOutputs generated_jars = 2;
-  repeated FileLocation sources = 4;
 }
 
 message TargetInfo {
-  string id = 1;
-
-  repeated string tags = 10;
-  repeated Dependency dependencies = 20;
+  string id = 10;
+  string kind = 20;
+  repeated string tags = 30;
+  repeated Dependency dependencies = 40;
+  repeated FileLocation sources = 50;
   JavaTargetInfo java_target_info = 1000;
 }
