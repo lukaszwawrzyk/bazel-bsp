@@ -20,6 +20,7 @@ import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspCompilationManager;
 import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspQueryManager;
 import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspTargetManager;
 import org.jetbrains.bsp.bazel.server.bsp.managers.BazelCppTargetManager;
+import org.jetbrains.bsp.bazel.server.sync.ProjectSyncService;
 
 public class BazelBspServerBuildManager {
 
@@ -31,27 +32,29 @@ public class BazelBspServerBuildManager {
   private final BazelBspTargetManager bazelBspTargetManager;
   private final BazelBspAspectsManager bazelBspAspectsManager;
   private final BazelCppTargetManager bazelCppTargetManager;
+  private final ProjectSyncService projectSyncService;
 
   private BepServer bepServer;
 
   public BazelBspServerBuildManager(
-      BazelBspServerRequestHelpers serverRequestHelpers,
-      BazelBspCompilationManager bazelBspCompilationManager,
-      BazelBspAspectsManager bazelBspAspectsManager,
-      BazelBspTargetManager bazelBspTargetManager,
-      BazelCppTargetManager bazelCppTargetManager,
-      BazelBspQueryManager bazelBspQueryManager) {
+          BazelBspServerRequestHelpers serverRequestHelpers,
+          BazelBspCompilationManager bazelBspCompilationManager,
+          BazelBspAspectsManager bazelBspAspectsManager,
+          BazelBspTargetManager bazelBspTargetManager,
+          BazelCppTargetManager bazelCppTargetManager,
+          BazelBspQueryManager bazelBspQueryManager, ProjectSyncService projectSyncService) {
     this.serverRequestHelpers = serverRequestHelpers;
     this.bazelBspCompilationManager = bazelBspCompilationManager;
     this.bazelBspAspectsManager = bazelBspAspectsManager;
     this.bazelCppTargetManager = bazelCppTargetManager;
     this.bazelBspTargetManager = bazelBspTargetManager;
     this.bazelBspQueryManager = bazelBspQueryManager;
+    this.projectSyncService = projectSyncService;
   }
 
   public CompletableFuture<WorkspaceBuildTargetsResult> getWorkspaceBuildTargets() {
     return serverRequestHelpers.executeCommand(
-        "workspaceBuildTargets", bazelBspQueryManager::getWorkspaceBuildTargets);
+        "workspaceBuildTargets", projectSyncService::workspaceBuildTargets);
   }
 
   public List<SourceItem> getSourceItems(Build.Rule rule, BuildTargetIdentifier label) {

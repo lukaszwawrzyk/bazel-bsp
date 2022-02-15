@@ -16,6 +16,7 @@ java_library(
         "@com_google_protobuf//:protobuf_java",
         "@maven//:ch_epfl_scala_bsp4j",
         "@maven//:io_vavr_vavr",
+        "@maven//:org_eclipse_lsp4j_org_eclipse_lsp4j_jsonrpc",
     ],
 )
 

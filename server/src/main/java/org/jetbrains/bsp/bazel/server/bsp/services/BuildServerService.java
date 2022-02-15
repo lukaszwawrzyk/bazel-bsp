@@ -59,9 +59,6 @@ import org.jetbrains.bsp.bazel.server.bsp.resolvers.QueryResolver;
 import org.jetbrains.bsp.bazel.server.bsp.resolvers.TargetRulesResolver;
 import org.jetbrains.bsp.bazel.server.bsp.resolvers.TargetsUtils;
 import org.jetbrains.bsp.bazel.server.bsp.utils.SourceRootGuesser;
-import org.jetbrains.bsp.bazel.server.sync.BspProjectMapper;
-import org.jetbrains.bsp.bazel.server.sync.ProjectResolver;
-import org.jetbrains.bsp.bazel.server.sync.ProjectStore;
 
 public class BuildServerService {
 
@@ -74,7 +71,6 @@ public class BuildServerService {
   private final BazelData bazelData;
   private final BazelRunner bazelRunner;
   private final ProjectView projectView;
-  private ProjectResolver projectResolver;
 
   public BuildServerService(
           BazelBspServerRequestHelpers serverRequestHelpers,
@@ -82,14 +78,13 @@ public class BuildServerService {
           BazelBspServerBuildManager serverBuildManager,
           BazelData bazelData,
           BazelRunner bazelRunner,
-          ProjectView projectView, ProjectResolver projectResolver) {
+          ProjectView projectView) {
     this.serverRequestHelpers = serverRequestHelpers;
     this.serverLifetime = serverLifetime;
     this.serverBuildManager = serverBuildManager;
     this.bazelData = bazelData;
     this.bazelRunner = bazelRunner;
     this.projectView = projectView;
-    this.projectResolver = projectResolver;
   }
 
   public CompletableFuture<InitializeBuildResult> buildInitialize(
@@ -163,9 +158,6 @@ public class BuildServerService {
 
   public CompletableFuture<WorkspaceBuildTargetsResult> workspaceBuildTargets() {
     LOGGER.info("workspaceBuildTargets call");
-    var mapper = new BspProjectMapper();
-    var project = projectResolver.resolve();
-    ProjectStore.update(project);
     return serverBuildManager.getWorkspaceBuildTargets();
   }
 
