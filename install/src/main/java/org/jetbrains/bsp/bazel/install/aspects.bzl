@@ -254,7 +254,8 @@ def _bsp_target_info_aspect_impl(target, ctx):
 
     result = dict(
         id = str(target.label),
-        dependencies = list(all_deps)
+        tags = rule_attrs.tags,
+        dependencies = list(all_deps),
     )
 
     extract_java_info(target, ctx, result)
