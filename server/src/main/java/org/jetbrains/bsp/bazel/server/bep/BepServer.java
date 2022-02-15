@@ -21,7 +21,6 @@ import com.google.devtools.build.v1.PublishLifecycleEventRequest;
 import com.google.protobuf.Empty;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
@@ -29,8 +28,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.bsp.bazel.bazelrunner.data.BazelData;
@@ -59,7 +56,7 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
   private final Deque<TaskId> startedEventTaskIds = new ArrayDeque<>();
   private final Map<String, String> diagnosticsProtosLocations = new HashMap<>();
   private final Map<String, Set<Uri>> outputGroupPaths = new HashMap<>();
-  private final BepOutput bepOutput = new BepOutput();
+  private BepOutput bepOutput = new BepOutput();
 
   public BepServer(
       BazelData bazelData, BuildClient bspClient, BuildClientLogger buildClientLogger) {
@@ -113,7 +110,7 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
 
   private void fetchNamedSet(BuildEventStreamProtos.BuildEvent event) {
     if (event.getId().hasNamedSet()) {
-      bepOutput.addNamedSet(event.getId().getNamedSet().getId(), event.getNamedSetOfFiles());
+      bepOutput.storeNamedSet(event.getId().getNamedSet().getId(), event.getNamedSetOfFiles());
     }
   }
 
@@ -125,7 +122,7 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
   }
 
   private void consumeBuildStartedEvent(BuildEventStreamProtos.BuildStarted buildStarted) {
-    bepOutput.reset();
+    bepOutput = new BepOutput();
     TaskId taskId = new TaskId(buildStarted.getUuid());
     TaskStartParams startParams = new TaskStartParams(taskId);
     startParams.setEventTime(buildStarted.getStartTimeMillis());

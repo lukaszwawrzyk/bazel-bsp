@@ -18,15 +18,9 @@ import java.util.stream.Stream;
 public class BepOutput {
   private final Map<String, Set<String>> outputGroups = new HashMap<>();
   private final Map<String, NamedSetOfFiles> fileSets = new HashMap<>();
-  private final Set<String> rootTargets = new ArrayList<>();
+  private final Set<String> rootTargets = new HashSet<>();
 
-  public void reset() {
-    fileSets.clear();
-    outputGroups.clear();
-    rootTargets.clear();
-  }
-
-  public void addNamedSet(String id, NamedSetOfFiles namedSetOfFiles) {
+  public void storeNamedSet(String id, NamedSetOfFiles namedSetOfFiles) {
     this.fileSets.put(id, namedSetOfFiles);
   }
 
@@ -78,7 +72,7 @@ public class BepOutput {
     return result;
   }
 
-  public List<String> getRootTargets() {
+  public Set<String> getRootTargets() {
     return rootTargets;
   }
 }
