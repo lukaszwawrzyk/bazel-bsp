@@ -59,7 +59,9 @@ import org.jetbrains.bsp.bazel.server.bsp.resolvers.QueryResolver;
 import org.jetbrains.bsp.bazel.server.bsp.resolvers.TargetRulesResolver;
 import org.jetbrains.bsp.bazel.server.bsp.resolvers.TargetsUtils;
 import org.jetbrains.bsp.bazel.server.bsp.utils.SourceRootGuesser;
+import org.jetbrains.bsp.bazel.server.sync.BspProjectMapper;
 import org.jetbrains.bsp.bazel.server.sync.ProjectResolver;
+import org.jetbrains.bsp.bazel.server.sync.ProjectStore;
 
 public class BuildServerService {
 
@@ -161,7 +163,9 @@ public class BuildServerService {
 
   public CompletableFuture<WorkspaceBuildTargetsResult> workspaceBuildTargets() {
     LOGGER.info("workspaceBuildTargets call");
-    projectResolver.resolve();
+    var mapper = new BspProjectMapper();
+    var project = projectResolver.resolve();
+    ProjectStore.update(project);
     return serverBuildManager.getWorkspaceBuildTargets();
   }
 

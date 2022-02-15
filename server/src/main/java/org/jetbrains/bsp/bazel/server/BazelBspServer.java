@@ -74,8 +74,8 @@ public class BazelBspServer {
     ProjectResolver projectResolver =
         new ProjectResolver(
             bazelBspAspectsManager,
-            new ProjectViewStore(bazelBspServerConfig.getProjectView()),
-            bazelRunner);
+            new ProjectViewStore(bazelBspServerConfig.getProjectView())
+        );
     BazelBspQueryManager bazelBspQueryManager =
         new BazelBspQueryManager(
             bazelBspServerConfig.getProjectView(), bazelData, bazelRunner, bazelBspTargetManager);

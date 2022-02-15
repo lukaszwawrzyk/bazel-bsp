@@ -17,15 +17,12 @@ import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspAspectsManager;
 public class ProjectResolver {
   private final BazelBspAspectsManager bazelBspAspectsManager;
   private final ProjectViewStore projectViewStore;
-  private final BazelRunner bazelRunner;
 
   public ProjectResolver(
-      BazelBspAspectsManager bazelBspAspectsManager,
-      ProjectViewStore projectViewStore,
-      BazelRunner bazelRunner) {
+          BazelBspAspectsManager bazelBspAspectsManager,
+          ProjectViewStore projectViewStore) {
     this.bazelBspAspectsManager = bazelBspAspectsManager;
     this.projectViewStore = projectViewStore;
-    this.bazelRunner = bazelRunner;
   }
 
   public Project resolve() {
