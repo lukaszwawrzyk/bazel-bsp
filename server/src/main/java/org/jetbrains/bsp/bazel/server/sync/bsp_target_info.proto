@@ -29,6 +29,12 @@ message JavaTargetInfo {
   repeated JvmOutputs generated_jars = 2;
 }
 
+message JavaToolchainInfo {
+  string source_version = 1;
+  string target_version = 2;
+  FileLocation java_home = 3;
+}
+
 message TargetInfo {
   string id = 10;
   string kind = 20;
@@ -36,4 +42,5 @@ message TargetInfo {
   repeated Dependency dependencies = 40;
   repeated FileLocation sources = 50;
   JavaTargetInfo java_target_info = 1000;
+  JavaToolchainInfo java_toolchain_info = 2000;
 }

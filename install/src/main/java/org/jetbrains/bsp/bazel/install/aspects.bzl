@@ -83,9 +83,9 @@ def get_generated_jars(provider):
 
     if hasattr(provider, "annotation_processing") and provider.annotation_processing and provider.annotation_processing.enabled:
         return [struct(
-           binary_jars = [file_location(provider.annotation_processing.class_jar)],
-           source_jars = [file_location(provider.annotation_processing.source_jar)],
-       )]
+            binary_jars = [file_location(provider.annotation_processing.class_jar)],
+            source_jars = [file_location(provider.annotation_processing.source_jar)],
+        )]
 
     return []
 
@@ -129,6 +129,34 @@ def extract_java_info(target, ctx, result):
         generated_jars = generated_jars,
     )
     result["java_target_info"] = java_info
+
+def extract_java_toolchain(target, ctx, result, dep_targets):
+    toolchain = None
+
+    if hasattr(target, "java_toolchain"):
+        toolchain = target.java_toolchain
+    elif java_common.JavaToolchainInfo != platform_common.ToolchainInfo and \
+         java_common.JavaToolchainInfo in target:
+        toolchain = target[java_common.JavaToolchainInfo]
+
+    toolchain_info = None
+    if toolchain != None:
+        toolchain_info = struct(
+            source_version = toolchain.source_version,
+            target_version = toolchain.target_version,
+            java_home = struct(path = toolchain.java_runtime.java_home),
+        )
+    else:
+        for dep in dep_targets:
+            if hasattr(dep.bsp_info, "java_toolchain_info"):
+                toolchain_info = dep.bsp_info.java_toolchain_info
+                break
+
+    if toolchain_info != None:
+        result["java_toolchain_info"] = toolchain_info
+        return dict(java_toolchain_info = toolchain_info)
+    else:
+        return dict()
 
 def get_aspect_ids(ctx, target):
     """Returns the all aspect ids, filtering out self."""
@@ -178,6 +206,18 @@ def collect_targets_from_attrs(rule_attrs, attrs):
 COMPILE = 0
 RUNTIME = 1
 
+COMPILE_DEPS = [
+    "deps",
+    "jars",
+    "_java_toolchain",
+]
+
+RUNTIME_DEPS = [
+    "runtime_deps",
+]
+
+ALL_DEPS = COMPILE_DEPS + RUNTIME_DEPS
+
 def make_dep(dep, dependency_type):
     return struct(
         id = str(dep.bsp_info.id),
@@ -202,7 +242,7 @@ def _get_forwarded_deps(target, ctx):
 def _bsp_target_info_aspect_impl(target, ctx):
     rule_attrs = ctx.rule.attr
 
-    direct_dep_targets = collect_targets_from_attrs(rule_attrs, ["deps", "jars"])
+    direct_dep_targets = collect_targets_from_attrs(rule_attrs, COMPILE_DEPS)
     direct_deps = make_deps(direct_dep_targets, COMPILE)
 
     exported_deps_from_deps = []
@@ -211,7 +251,7 @@ def _bsp_target_info_aspect_impl(target, ctx):
 
     compile_deps = direct_deps + exported_deps_from_deps
 
-    runtime_dep_targets = collect_targets_from_attrs(rule_attrs, ["runtime_deps"])
+    runtime_dep_targets = collect_targets_from_attrs(rule_attrs, RUNTIME_DEPS)
     runtime_deps = make_deps(runtime_dep_targets, RUNTIME)
 
     all_deps = depset(compile_deps + runtime_deps).to_list()
@@ -259,8 +299,8 @@ def _bsp_target_info_aspect_impl(target, ctx):
         sources = sources,
     )
 
-
     extract_java_info(target, ctx, result)
+    java_toolchain_info = extract_java_toolchain(target, ctx, result, dep_targets)
 
     file_name = target.label.name
     file_name = file_name + "-" + str(abs(hash(file_name)))
@@ -272,21 +312,23 @@ def _bsp_target_info_aspect_impl(target, ctx):
     ctx.actions.write(info_file, proto.encode_text(struct(**result)))
     update_sync_output_groups(output_groups, "bsp-target-info", depset([info_file]))
 
-    return struct(
-        bsp_info = struct(
-            id = target.label,
-            kind = ctx.rule.kind,
-            export_deps = export_deps,
-            output_groups = output_groups,
-        ),
+    exported_properties = dict(
+        id = target.label,
+        kind = ctx.rule.kind,
+        export_deps = export_deps,
         output_groups = output_groups,
     )
+    exported_properties.update(java_toolchain_info)
 
+    return struct(
+        bsp_info = struct(**exported_properties),
+        output_groups = output_groups,
+    )
 
 bsp_target_info_aspect = aspect(
     implementation = _bsp_target_info_aspect_impl,
     required_aspect_providers = [[JavaInfo]],
-    attr_aspects = ["deps", "runtime_deps", "jars"]
+    attr_aspects = ALL_DEPS,
 )
 
 def _fetch_cpp_compiler(target, ctx):
