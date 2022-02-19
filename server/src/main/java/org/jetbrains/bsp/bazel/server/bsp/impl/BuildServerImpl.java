@@ -107,7 +107,7 @@ public class BuildServerImpl implements BuildServer {
   @Override
   public CompletableFuture<ResourcesResult> buildTargetResources(ResourcesParams resourcesParams) {
     return serverRequestHelpers.executeCommand(
-        "buildTargetResources", () -> buildServerService.buildTargetResources(resourcesParams));
+        "buildTargetResources", () -> projectSyncService.buildTargetResources(resourcesParams));
   }
 
   @Override

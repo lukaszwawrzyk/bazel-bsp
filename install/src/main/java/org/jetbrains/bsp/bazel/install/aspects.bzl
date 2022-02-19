@@ -77,7 +77,7 @@ def to_file_location(exec_path, root_exec_path_fragment, is_source, is_external)
 
     root_exec_path_fragment = exec_path[:-(len("/" + relative_path))]
 
-    return struct_omit_none(
+    return struct(
         relative_path = relative_path,
         is_source = is_source,
         is_external = is_external,
@@ -322,12 +322,19 @@ def _bsp_target_info_aspect_impl(target, ctx):
         for f in t.files.to_list()
     ]
 
+    resources = [
+        file_location(f)
+        for t in getattr(ctx.rule.attr, "resources", [])
+        for f in t.files.to_list()
+    ]
+
     result = dict(
         id = str(target.label),
         kind = ctx.rule.kind,
         tags = rule_attrs.tags,
         dependencies = list(all_deps),
         sources = sources,
+        resources = resources,
     )
 
     extract_java_info(target, ctx, result)

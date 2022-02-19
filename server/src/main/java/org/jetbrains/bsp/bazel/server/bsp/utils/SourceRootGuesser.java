@@ -31,7 +31,7 @@ public class SourceRootGuesser {
   }
 
   public static String getSourcesRoot(URI sourceUri) {
-    return getSourcesRoot(Paths.get(sourceUri));
+    return getSourcesRoot(Paths.get(sourceUri)).toString();
   }
 
   private static Path approximateSourceRoot(Path dir, PathMatcher matcher) {

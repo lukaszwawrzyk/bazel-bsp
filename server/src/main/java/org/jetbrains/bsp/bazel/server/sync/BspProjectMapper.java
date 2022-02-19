@@ -6,6 +6,8 @@ import ch.epfl.scala.bsp4j.BuildTargetDataKind;
 import ch.epfl.scala.bsp4j.BuildTargetIdentifier;
 import ch.epfl.scala.bsp4j.CppBuildTarget;
 import ch.epfl.scala.bsp4j.JvmBuildTarget;
+import ch.epfl.scala.bsp4j.ResourcesItem;
+import ch.epfl.scala.bsp4j.ResourcesResult;
 import ch.epfl.scala.bsp4j.ScalaBuildTarget;
 import ch.epfl.scala.bsp4j.ScalaPlatform;
 import ch.epfl.scala.bsp4j.SourceItem;
@@ -56,7 +58,7 @@ public class BspProjectMapper {
             dependencies.toJavaList(),
             capabilities);
     buildTarget.setDisplayName(label.getUri());
-    buildTarget.setBaseDirectory(baseDirectory.toUri().toString());
+    buildTarget.setBaseDirectory(toBspUri(baseDirectory));
     buildTarget.setTags(List.of(tag).toJavaList());
 
     if (languages.contains(Language.SCALA.getName())) {
@@ -115,9 +117,8 @@ public class BspProjectMapper {
     }
 
     var toolchainInfo = targetInfo.getJavaToolchainInfo();
-    var javaHome = bazelPathsResolver.resolve(toolchainInfo.getJavaHome());
-    var buildTarget =
-        new JvmBuildTarget(javaHome.toUri().toString(), toolchainInfo.getSourceVersion());
+    var javaHome = toBspUri(toolchainInfo.getJavaHome());
+    var buildTarget = new JvmBuildTarget(javaHome, toolchainInfo.getSourceVersion());
     return Option.some(buildTarget);
   }
 
@@ -139,9 +140,7 @@ public class BspProjectMapper {
                                   .map(
                                       file ->
                                           new SourceItem(
-                                              bazelPathsResolver.resolve(file).toUri().toString(),
-                                              SourceItemKind.FILE,
-                                              false)))
+                                              toBspUri(file), SourceItemKind.FILE, false)))
                       .getOrElse(List.of());
 
               var sourcesItem =
@@ -152,6 +151,31 @@ public class BspProjectMapper {
             });
 
     return new SourcesResult(sourcesItems.toJavaList());
+  }
+
+  public ResourcesResult resources(Project project, Set<String> labels) {
+    var targets = project.getTargets();
+    var resourcesItems =
+        labels.map(
+            label -> {
+              var resourceItems =
+                  targets
+                      .get(label)
+                      .map(info -> List.ofAll(info.getResourcesList()).map(this::toBspUri))
+                      .getOrElse(List.of());
+
+              return new ResourcesItem(
+                  new BuildTargetIdentifier(label), resourceItems.toJavaList());
+            });
+    return new ResourcesResult(resourcesItems.toJavaList());
+  }
+
+  private String toBspUri(FileLocation file) {
+    return toBspUri(bazelPathsResolver.resolve(file));
+  }
+
+  private String toBspUri(Path path) {
+    return path.toUri().toString();
   }
 
   private List<String> inferSourceRoots(List<SourceItem> items) {

@@ -1,6 +1,8 @@
 package org.jetbrains.bsp.bazel.server.sync;
 
 import ch.epfl.scala.bsp4j.BuildTargetIdentifier;
+import ch.epfl.scala.bsp4j.ResourcesParams;
+import ch.epfl.scala.bsp4j.ResourcesResult;
 import ch.epfl.scala.bsp4j.SourcesParams;
 import ch.epfl.scala.bsp4j.SourcesResult;
 import ch.epfl.scala.bsp4j.WorkspaceBuildTargetsResult;
@@ -30,8 +32,14 @@ public class ProjectSyncService {
 
   public Either<ResponseError, SourcesResult> buildTargetSources(SourcesParams sourcesParams) {
     var project = store.get();
-    var sources = mapper.sources(project, toLabels(sourcesParams.getTargets()));
-    return Either.forRight(sources);
+    var result = mapper.sources(project, toLabels(sourcesParams.getTargets()));
+    return Either.forRight(result);
+  }
+
+  public Either<ResponseError, ResourcesResult> buildTargetResources(ResourcesParams resourcesParams) {
+    var project = store.get();
+    var result = mapper.resources(project, toLabels(resourcesParams.getTargets()));
+    return Either.forRight(result);
   }
 
   private Set<String> toLabels(java.util.List<BuildTargetIdentifier> targets) {

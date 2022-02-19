@@ -1,10 +1,7 @@
 package org.jetbrains.bsp.bazel.server.sync;
 
-import com.google.common.base.Splitter;
-import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 import org.jetbrains.bsp.bazel.bazelrunner.data.BazelData;
 import org.jetbrains.bsp.bazel.commons.Constants;
 import org.jetbrains.bsp.bazel.commons.Uri;
@@ -56,7 +53,4 @@ public class BazelPathsResolver {
         return parts[0];
     }
 
-    public Uri execPathToUri(String path) {
-        return Uri.fromExecPath(Constants.EXEC_ROOT_PREFIX + path, bazelData.getExecRoot());
-    }
 }
