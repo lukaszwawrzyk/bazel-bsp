@@ -266,7 +266,4 @@ public class Install {
     return property;
   }
 
-  private static String getCurrentDirectory() {
-    return System.getProperty("user.dir");
-  }
 }

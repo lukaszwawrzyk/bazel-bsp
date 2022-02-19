@@ -21,7 +21,6 @@ import org.jetbrains.bsp.bazel.server.bsp.resolvers.QueryResolver;
 import org.jetbrains.bsp.bazel.server.bsp.utils.BuildManagerParsingUtils;
 
 public class BazelBspCompilationManager {
-  private static final Logger LOGGER = LogManager.getLogger(BazelBspCompilationManager.class);
 
   private BepServer bepServer;
   private final BazelRunner bazelRunner;

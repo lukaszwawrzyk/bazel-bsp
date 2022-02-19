@@ -107,7 +107,7 @@ public class BazelBspServer {
         new JavaBuildServerService(
             bazelBspCompilationManager, bazelBspQueryManager, bazelData, bazelRunner);
     CppBuildServerService cppBuildServerService =
-        new CppBuildServerService(bazelRunner, bazelBspAspectsManager);
+        new CppBuildServerService(bazelBspAspectsManager);
 
     JvmBuildServer jvmBuildServer =
         new JvmBuildServerImpl(jvmBuildServerService, serverRequestHelpers);

@@ -4,15 +4,12 @@ import ch.epfl.scala.bsp4j.BuildTargetIdentifier;
 import ch.epfl.scala.bsp4j.CppOptionsItem;
 import ch.epfl.scala.bsp4j.CppOptionsParams;
 import ch.epfl.scala.bsp4j.CppOptionsResult;
-import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
-import org.jetbrains.bsp.bazel.bazelrunner.BazelRunner;
-import org.jetbrains.bsp.bazel.bazelrunner.params.BazelRunnerFlag;
 import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspAspectsManager;
 
 public class CppBuildServerService {
@@ -20,13 +17,11 @@ public class CppBuildServerService {
   public static final int DEFINES_LOCATION = 1;
   public static final int LINKOPTS_LOCATION = 2;
   public static final int LINKSHARED_LOCATION = 3;
-  private final BazelRunner bazelRunner;
   private static final String FETCH_CPP_TARGET_ASPECT = "get_cpp_target_info";
   private BazelBspAspectsManager bazelBspAspectsManager;
 
   public CppBuildServerService(
-      BazelRunner bazelRunner, BazelBspAspectsManager bazelBspAspectsManager) {
-    this.bazelRunner = bazelRunner;
+          BazelBspAspectsManager bazelBspAspectsManager) {
     this.bazelBspAspectsManager = bazelBspAspectsManager;
   }
 

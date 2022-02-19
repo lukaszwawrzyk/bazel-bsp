@@ -55,7 +55,6 @@ public class Constants {
   public static final String BAZELBSP_DIR_NAME = ".bazelbsp";
   public static final String BSP_DIR_NAME = ".bsp";
   public static final String BAZELBSP_JSON_FILE_NAME = "bazelbsp.json";
-  public static final String BAZELBSP_LOG_FILE_NAME = "bazelbsp.log";
   public static final String BAZELBSP_TRACE_JSON_FILE_NAME = "bazelbsp.trace.json";
 
   public static final String DIAGNOSTICS = "diagnostics";

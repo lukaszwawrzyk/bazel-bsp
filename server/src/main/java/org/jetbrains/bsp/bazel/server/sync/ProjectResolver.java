@@ -5,7 +5,6 @@ import com.google.protobuf.TextFormat;
 import io.vavr.API;
 import io.vavr.collection.HashSet;
 import io.vavr.collection.List;
-import io.vavr.collection.Set;
 import java.io.IOException;
 import java.net.URI;
 import static java.nio.charset.StandardCharsets.UTF_8;

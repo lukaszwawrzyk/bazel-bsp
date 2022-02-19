@@ -6,7 +6,7 @@ import org.jetbrains.bsp.bazel.commons.Constants;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.TargetInfo;
 
 public class TargetKindResolver {
-  private Map<String, String> ruleSuffixToTargetType =
+  private final Map<String, String> ruleSuffixToTargetType =
       Map.of(
           Constants.LIBRARY_RULE_TYPE, BuildTargetTag.LIBRARY,
           Constants.BINARY_RULE_TYPE, BuildTargetTag.APPLICATION,

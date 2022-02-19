@@ -14,24 +14,15 @@ import ch.epfl.scala.bsp4j.InitializeBuildParams;
 import ch.epfl.scala.bsp4j.InitializeBuildResult;
 import ch.epfl.scala.bsp4j.InverseSourcesParams;
 import ch.epfl.scala.bsp4j.InverseSourcesResult;
-import ch.epfl.scala.bsp4j.ResourcesItem;
-import ch.epfl.scala.bsp4j.ResourcesParams;
-import ch.epfl.scala.bsp4j.ResourcesResult;
 import ch.epfl.scala.bsp4j.RunParams;
 import ch.epfl.scala.bsp4j.RunProvider;
 import ch.epfl.scala.bsp4j.RunResult;
-import ch.epfl.scala.bsp4j.SourceItem;
-import ch.epfl.scala.bsp4j.SourcesItem;
-import ch.epfl.scala.bsp4j.SourcesParams;
-import ch.epfl.scala.bsp4j.SourcesResult;
 import ch.epfl.scala.bsp4j.StatusCode;
 import ch.epfl.scala.bsp4j.TestParams;
 import ch.epfl.scala.bsp4j.TestProvider;
 import ch.epfl.scala.bsp4j.TestResult;
-import ch.epfl.scala.bsp4j.WorkspaceBuildTargetsResult;
 import com.google.common.collect.Lists;
 import com.google.devtools.build.lib.query2.proto.proto2api.Build;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -56,9 +47,7 @@ import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerBuildManager;
 import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerLifetime;
 import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerRequestHelpers;
 import org.jetbrains.bsp.bazel.server.bsp.resolvers.QueryResolver;
-import org.jetbrains.bsp.bazel.server.bsp.resolvers.TargetRulesResolver;
 import org.jetbrains.bsp.bazel.server.bsp.resolvers.TargetsUtils;
-import org.jetbrains.bsp.bazel.server.bsp.utils.SourceRootGuesser;
 
 public class BuildServerService {
 
@@ -156,61 +145,6 @@ public class BuildServerService {
     serverLifetime.forceFinish();
   }
 
-  public Either<ResponseError, SourcesResult> buildTargetSources(SourcesParams sourcesParams) {
-    LOGGER.info("buildTargetSources call with param: {}", sourcesParams);
-    try {
-      TargetRulesResolver<SourcesItem> targetRulesResolver =
-          TargetRulesResolver.withBazelRunnerAndMapper(
-              bazelRunner, this::mapBuildRuleToSourcesItem);
-
-      List<SourcesItem> sourceItems =
-          targetRulesResolver.getItemsForTargets(sourcesParams.getTargets());
-
-      SourcesResult sourcesResult = new SourcesResult(sourceItems);
-
-      return Either.forRight(sourcesResult);
-    } catch (Exception e) {
-      ResponseError fail =
-          new ResponseError(ResponseErrorCode.InternalError, e.getMessage(), e.getStackTrace());
-      return Either.forLeft(fail);
-    }
-  }
-
-  private SourcesItem mapBuildRuleToSourcesItem(Build.Rule rule) {
-    BuildTargetIdentifier ruleLabel = new BuildTargetIdentifier(rule.getName());
-    List<SourceItem> items = serverBuildManager.getSourceItems(rule, ruleLabel);
-    List<String> roots = getRuleRoots(items);
-
-    return createSourcesForLabelAndItemsAndRoots(ruleLabel, items, roots);
-  }
-
-  private List<String> getRuleRoots(List<SourceItem> items) {
-    return items.stream()
-        .map(SourceItem::getUri)
-        .map(
-            uri -> {
-              try {
-                URL url = new URL(uri);
-                return url.toURI();
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-            })
-        .map(SourceRootGuesser::getSourcesRoot)
-        .map(Uri::fromAbsolutePath)
-        .map(Uri::toString)
-        .distinct()
-        .collect(Collectors.toList());
-  }
-
-  private SourcesItem createSourcesForLabelAndItemsAndRoots(
-      BuildTargetIdentifier label, List<SourceItem> items, List<String> roots) {
-    SourcesItem item = new SourcesItem(label, items);
-    item.setRoots(roots);
-
-    return item;
-  }
-
   public Either<ResponseError, InverseSourcesResult> buildTargetInverseSources(
       InverseSourcesParams inverseSourcesParams) {
     LOGGER.info("buildTargetInverseSources call with param: {}", inverseSourcesParams);
@@ -271,48 +205,6 @@ public class BuildServerService {
                 .collect(Collectors.toList()));
 
     return Either.forRight(result);
-  }
-
-  public Either<ResponseError, ResourcesResult> buildTargetResources(
-      ResourcesParams resourcesParams) {
-    LOGGER.info("buildTargetResources call with param: {}", resourcesParams);
-
-    BazelProcess bazelProcess =
-        bazelRunner
-            .commandBuilder()
-            .query()
-            .withFlag(BazelRunnerFlag.OUTPUT_PROTO)
-            .withArgument(TargetsUtils.getAllProjectTargetsWithExcludedTargets(projectView))
-            .executeBazelBesCommand();
-
-    Build.QueryResult query = QueryResolver.getQueryResultForProcess(bazelProcess);
-
-    LOGGER.info("Resources query result {}", query);
-
-    ResourcesResult resourcesResult =
-        new ResourcesResult(
-            query.getTargetList().stream()
-                .map(Build.Target::getRule)
-                .filter(
-                    rule ->
-                        resourcesParams.getTargets().stream()
-                            .anyMatch(target -> target.getUri().equals(rule.getName())))
-                .filter(
-                    rule ->
-                        rule.getAttributeList().stream()
-                            .anyMatch(
-                                attribute ->
-                                    attribute.getName().equals("resources")
-                                        && attribute.hasExplicitlySpecified()
-                                        && attribute.getExplicitlySpecified()))
-                .map(
-                    rule ->
-                        new ResourcesItem(
-                            new BuildTargetIdentifier(rule.getName()),
-                            serverBuildManager.getResources(rule, query)))
-                .collect(Collectors.toList()));
-
-    return Either.forRight(resourcesResult);
   }
 
   public Either<ResponseError, CompileResult> buildTargetCompile(CompileParams compileParams) {
