@@ -13,6 +13,7 @@ java_library(
         "//projectview",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bep",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/managers",
+        "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/utils",
         "@com_google_protobuf//:protobuf_java",
         "@maven//:ch_epfl_scala_bsp4j",
         "@maven//:io_vavr_vavr",

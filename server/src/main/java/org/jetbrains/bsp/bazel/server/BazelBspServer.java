@@ -37,6 +37,7 @@ import org.jetbrains.bsp.bazel.server.bsp.services.ScalaBuildServerService;
 import org.jetbrains.bsp.bazel.server.bsp.utils.InternalAspectsResolver;
 import org.jetbrains.bsp.bazel.server.loggers.BuildClientLogger;
 import org.jetbrains.bsp.bazel.server.sync.ProjectResolver;
+import org.jetbrains.bsp.bazel.server.sync.ProjectStore;
 import org.jetbrains.bsp.bazel.server.sync.ProjectSyncService;
 import org.jetbrains.bsp.bazel.server.sync.ProjectViewStore;
 
@@ -78,17 +79,16 @@ public class BazelBspServer {
     BazelBspQueryManager bazelBspQueryManager =
         new BazelBspQueryManager(
             bazelBspServerConfig.getProjectView(), bazelData, bazelRunner, bazelBspTargetManager);
-    ProjectSyncService projectSyncService = new ProjectSyncService(projectResolver, bazelData);
+    ProjectStore projectStore = new ProjectStore();
+    ProjectSyncService projectSyncService =
+        new ProjectSyncService(projectResolver, bazelData, projectStore);
 
     this.serverBuildManager =
         new BazelBspServerBuildManager(
-            serverRequestHelpers,
             bazelBspCompilationManager,
             bazelBspAspectsManager,
             bazelBspTargetManager,
-            bazelCppTargetManager,
-            bazelBspQueryManager,
-            projectSyncService);
+            bazelBspQueryManager);
 
     BuildServerService buildServerService =
         new BuildServerService(
@@ -97,8 +97,7 @@ public class BazelBspServer {
             serverBuildManager,
             bazelData,
             bazelRunner,
-            bazelBspServerConfig.getProjectView()
-        );
+            bazelBspServerConfig.getProjectView());
 
     JvmBuildServerService jvmBuildServerService = new JvmBuildServerService(bazelData, bazelRunner);
     ScalaBuildServerService scalaBuildServerService =
@@ -118,7 +117,8 @@ public class BazelBspServer {
         new JavaBuildServerImpl(javaBuildServerService, serverRequestHelpers);
     CppBuildServer cppBuildServer =
         new CppBuildServerImpl(cppBuildServerService, serverRequestHelpers);
-    BuildServer buildServer = new BuildServerImpl(buildServerService, serverRequestHelpers);
+    BuildServer buildServer =
+        new BuildServerImpl(buildServerService, serverRequestHelpers, projectSyncService);
 
     this.bspImplementationHub =
         new BspImplementationHub(

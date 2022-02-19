@@ -1,20 +1,25 @@
 package org.jetbrains.bsp.bazel.server.sync;
 
 public class ProjectStore {
-    private static Project project;
+    private Project project;
 
-    public static Project get() {
+    public Project get() {
         if (project == null) {
             loadProject();
         }
         return project;
     }
 
-    private static void loadProject() {
+    private void loadProject() {
         // TODO load from file, fail if not exists
     }
 
-    public static void update(Project project) {
-        ProjectStore.project = project;
+    public void update(Project project) {
+        this.project = project;
+        storeProject();
+    }
+
+    private void storeProject() {
+        // TODO save project data to disk
     }
 }

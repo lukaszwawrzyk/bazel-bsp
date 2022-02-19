@@ -5,7 +5,10 @@ package bazelbsp;
 option java_package = "org.jetbrains.bsp.bazel.info";
 
 message FileLocation {
-  string path = 1;
+  string relative_path = 1;
+  bool is_source = 2;
+  bool is_external = 3;
+  string root_execution_path_fragment = 4;
 }
 
 message Dependency {

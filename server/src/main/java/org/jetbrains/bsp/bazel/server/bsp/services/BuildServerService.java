@@ -156,11 +156,6 @@ public class BuildServerService {
     serverLifetime.forceFinish();
   }
 
-  public CompletableFuture<WorkspaceBuildTargetsResult> workspaceBuildTargets() {
-    LOGGER.info("workspaceBuildTargets call");
-    return serverBuildManager.getWorkspaceBuildTargets();
-  }
-
   public Either<ResponseError, SourcesResult> buildTargetSources(SourcesParams sourcesParams) {
     LOGGER.info("buildTargetSources call with param: {}", sourcesParams);
     try {

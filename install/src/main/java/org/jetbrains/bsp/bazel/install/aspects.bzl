@@ -51,7 +51,38 @@ def distinct(xs):
 def file_location(file):
     if file == None:
         return None
-    return struct(path = file.path)
+
+    return to_file_location(
+        file.path,
+        file.root.path if not file.is_source else "",
+        file.is_source,
+        file.owner.workspace_root.startswith("..")
+    )
+
+def _strip_root_exec_path_fragment(path, root_fragment):
+    if root_fragment and path.startswith(root_fragment + "/"):
+        return path[len(root_fragment + "/"):]
+    return path
+
+def _strip_external_workspace_prefix(path):
+    if path.startswith("../"):
+        return "/".join(path.split("/")[2:])
+    return path
+
+def to_file_location(exec_path, root_exec_path_fragment, is_source, is_external):
+    # directory structure:
+    # exec_path = (../repo_name)? + (root_fragment)? + relative_path
+    relative_path = _strip_external_workspace_prefix(exec_path)
+    relative_path = _strip_root_exec_path_fragment(relative_path, root_exec_path_fragment)
+
+    root_exec_path_fragment = exec_path[:-(len("/" + relative_path))]
+
+    return struct_omit_none(
+        relative_path = relative_path,
+        is_source = is_source,
+        is_external = is_external,
+        root_execution_path_fragment = root_exec_path_fragment,
+    )
 
 def get_java_provider(target):
     if hasattr(target, "scala"):
@@ -144,7 +175,7 @@ def extract_java_toolchain(target, ctx, result, dep_targets):
         toolchain_info = struct(
             source_version = toolchain.source_version,
             target_version = toolchain.target_version,
-            java_home = struct(path = toolchain.java_runtime.java_home),
+            java_home = to_file_location(toolchain.java_runtime.java_home, "", False, False),
         )
     else:
         for dep in dep_targets:

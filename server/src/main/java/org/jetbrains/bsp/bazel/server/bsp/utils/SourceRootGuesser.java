@@ -12,8 +12,7 @@ import java.util.Optional;
 
 public class SourceRootGuesser {
 
-  public static String getSourcesRoot(URI sourceUri) {
-    Path sourcePath = Paths.get(sourceUri);
+  public static Path getSourcesRoot(Path sourcePath) {
     FileSystem fs = FileSystems.getDefault();
     PathMatcher sourceRootPattern =
         fs.getPathMatcher(
@@ -28,7 +27,11 @@ public class SourceRootGuesser {
             .filter(Objects::nonNull)
             .findFirst();
 
-    return sourceRootGuess.orElse(sourcePath.getParent()).toAbsolutePath().toString();
+    return sourceRootGuess.orElse(sourcePath.getParent()).toAbsolutePath();
+  }
+
+  public static String getSourcesRoot(URI sourceUri) {
+    return getSourcesRoot(Paths.get(sourceUri));
   }
 
   private static Path approximateSourceRoot(Path dir, PathMatcher matcher) {
