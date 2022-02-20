@@ -36,6 +36,8 @@ import org.jetbrains.bsp.bazel.server.bsp.services.JvmBuildServerService;
 import org.jetbrains.bsp.bazel.server.bsp.services.ScalaBuildServerService;
 import org.jetbrains.bsp.bazel.server.bsp.utils.InternalAspectsResolver;
 import org.jetbrains.bsp.bazel.server.loggers.BuildClientLogger;
+import org.jetbrains.bsp.bazel.server.sync.BazelPathsResolver;
+import org.jetbrains.bsp.bazel.server.sync.BspProjectMapper;
 import org.jetbrains.bsp.bazel.server.sync.ProjectResolver;
 import org.jetbrains.bsp.bazel.server.sync.ProjectStore;
 import org.jetbrains.bsp.bazel.server.sync.ProjectSyncService;
@@ -73,15 +75,17 @@ public class BazelBspServer {
     BazelCppTargetManager bazelCppTargetManager = new BazelCppTargetManager(bazelBspAspectsManager);
     BazelBspTargetManager bazelBspTargetManager =
         new BazelBspTargetManager(bazelRunner, bazelBspAspectsManager, bazelCppTargetManager);
+    BazelPathsResolver bazelPathsResolver = new BazelPathsResolver(bazelData);
     ProjectResolver projectResolver =
         new ProjectResolver(
-            bazelBspAspectsManager, new ProjectViewStore(bazelBspServerConfig.getProjectView()));
+            bazelBspAspectsManager, new ProjectViewStore(bazelBspServerConfig.getProjectView()), bazelPathsResolver);
     BazelBspQueryManager bazelBspQueryManager =
         new BazelBspQueryManager(
             bazelBspServerConfig.getProjectView(), bazelData, bazelRunner, bazelBspTargetManager);
     ProjectStore projectStore = new ProjectStore();
+    BspProjectMapper bspProjectMapper = new BspProjectMapper(bazelPathsResolver);
     ProjectSyncService projectSyncService =
-        new ProjectSyncService(projectResolver, bazelData, projectStore);
+        new ProjectSyncService(projectResolver, bspProjectMapper, projectStore);
 
     this.serverBuildManager =
         new BazelBspServerBuildManager(

@@ -93,7 +93,7 @@ public class BuildServerImpl implements BuildServer {
       InverseSourcesParams inverseSourcesParams) {
     return serverRequestHelpers.executeCommand(
         "buildTargetInverseSources",
-        () -> buildServerService.buildTargetInverseSources(inverseSourcesParams));
+        () -> projectSyncService.buildTargetInverseSources(inverseSourcesParams));
   }
 
   @Override

@@ -5,14 +5,18 @@ import ch.epfl.scala.bsp4j.BuildTargetCapabilities;
 import ch.epfl.scala.bsp4j.BuildTargetDataKind;
 import ch.epfl.scala.bsp4j.BuildTargetIdentifier;
 import ch.epfl.scala.bsp4j.CppBuildTarget;
+import ch.epfl.scala.bsp4j.InverseSourcesParams;
+import ch.epfl.scala.bsp4j.InverseSourcesResult;
 import ch.epfl.scala.bsp4j.JvmBuildTarget;
 import ch.epfl.scala.bsp4j.ResourcesItem;
+import ch.epfl.scala.bsp4j.ResourcesParams;
 import ch.epfl.scala.bsp4j.ResourcesResult;
 import ch.epfl.scala.bsp4j.ScalaBuildTarget;
 import ch.epfl.scala.bsp4j.ScalaPlatform;
 import ch.epfl.scala.bsp4j.SourceItem;
 import ch.epfl.scala.bsp4j.SourceItemKind;
 import ch.epfl.scala.bsp4j.SourcesItem;
+import ch.epfl.scala.bsp4j.SourcesParams;
 import ch.epfl.scala.bsp4j.SourcesResult;
 import ch.epfl.scala.bsp4j.WorkspaceBuildTargetsResult;
 import io.vavr.collection.HashSet;
@@ -24,7 +28,6 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
-import org.jetbrains.bsp.bazel.bazelrunner.data.BazelData;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.FileLocation;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.TargetInfo;
 import org.jetbrains.bsp.bazel.server.bsp.utils.SourceRootGuesser;
@@ -34,8 +37,8 @@ public class BspProjectMapper {
   private final TargetKindResolver targetKindResolver = new TargetKindResolver();
   private final BazelPathsResolver bazelPathsResolver;
 
-  public BspProjectMapper(BazelData bazelData) {
-    this.bazelPathsResolver = new BazelPathsResolver(bazelData);
+  public BspProjectMapper(BazelPathsResolver bazelPathsResolver) {
+    this.bazelPathsResolver = bazelPathsResolver;
   }
 
   public WorkspaceBuildTargetsResult workspaceTargets(Project project) {
@@ -123,11 +126,12 @@ public class BspProjectMapper {
     return Option.some(buildTarget);
   }
 
-  public SourcesResult sources(Project project, Set<String> labels) {
+  public SourcesResult sources(Project project, SourcesParams sourcesParams) {
     // TODO cover `bepServer.getBuildTargetsSources().put(label, srcs)` line from original
     // implementation
     // TODO handle generated sources. google's plugin doesn't ever mark source root as generated
     // we need a use case with some generated files and then figure out how to handle it
+    var labels = toLabels(sourcesParams.getTargets());
     var targets = project.getTargets();
     var sourcesItems = labels.map(label -> getSourcesItem(targets, label));
     return new SourcesResult(sourcesItems.toJavaList());
@@ -147,7 +151,12 @@ public class BspProjectMapper {
         .map(file -> new SourceItem(toBspUri(file), SourceItemKind.FILE, false));
   }
 
-  public ResourcesResult resources(Project project, Set<String> labels) {
+  private List<String> inferSourceRoots(List<SourceItem> items) {
+    return items.map(this::inferSourceRoot).distinct();
+  }
+
+  public ResourcesResult resources(Project project, ResourcesParams resourcesParams) {
+    var labels = toLabels(resourcesParams.getTargets());
     var targets = project.getTargets();
     var resourcesItems = labels.map(label -> getResourcesItem(targets, label));
     return new ResourcesResult(resourcesItems.toJavaList());
@@ -163,6 +172,19 @@ public class BspProjectMapper {
     return new ResourcesItem(new BuildTargetIdentifier(label), resourceItems.toJavaList());
   }
 
+  private String inferSourceRoot(SourceItem item) {
+    var path = Paths.get(URI.create(item.getUri()));
+    var rootPath = SourceRootGuesser.getSourcesRoot(path);
+    return rootPath.toUri().toString();
+  }
+
+  public InverseSourcesResult inverseSources(
+      Project project, InverseSourcesParams inverseSourcesParams) {
+    var documentUri = inverseSourcesParams.getTextDocument().getUri();
+    var targets = project.findTargetBySource(documentUri).toList();
+    return new InverseSourcesResult(targets.map(BuildTargetIdentifier::new).toJavaList());
+  }
+
   private String toBspUri(FileLocation file) {
     return toBspUri(bazelPathsResolver.resolve(file));
   }
@@ -171,13 +193,7 @@ public class BspProjectMapper {
     return path.toUri().toString();
   }
 
-  private List<String> inferSourceRoots(List<SourceItem> items) {
-    return items.map(this::inferSourceRoot).distinct();
-  }
-
-  private String inferSourceRoot(SourceItem item) {
-    var path = Paths.get(URI.create(item.getUri()));
-    var rootPath = SourceRootGuesser.getSourcesRoot(path);
-    return rootPath.toUri().toString();
+  private Set<String> toLabels(java.util.List<BuildTargetIdentifier> targets) {
+    return HashSet.ofAll(targets).map(BuildTargetIdentifier::getUri);
   }
 }
