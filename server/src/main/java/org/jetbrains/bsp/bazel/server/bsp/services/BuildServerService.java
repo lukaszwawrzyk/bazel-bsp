@@ -145,68 +145,6 @@ public class BuildServerService {
     serverLifetime.forceFinish();
   }
 
-  public Either<ResponseError, InverseSourcesResult> buildTargetInverseSources(
-      InverseSourcesParams inverseSourcesParams) {
-    LOGGER.info("buildTargetInverseSources call with param: {}", inverseSourcesParams);
-
-    String fileUri = inverseSourcesParams.getTextDocument().getUri();
-    String workspaceRoot = bazelData.getWorkspaceRoot();
-    String prefix = Uri.fromWorkspacePath("", workspaceRoot).toString();
-    if (!inverseSourcesParams.getTextDocument().getUri().startsWith(prefix)) {
-      LOGGER.error("Could not resolve {} within workspace {}", fileUri, prefix);
-
-      throw new RuntimeException("Could not resolve " + fileUri + " within workspace " + prefix);
-    }
-    String kindInput = TargetsUtils.getKindInput(projectView, fileUri, prefix);
-    BazelQueryKindParameters kindParameter =
-        BazelQueryKindParameters.fromPatternAndInput("rule", kindInput);
-
-    BazelProcess bazelProcess =
-        bazelRunner
-            .commandBuilder()
-            .query()
-            .withFlag(BazelRunnerFlag.OUTPUT_PROTO)
-            .withKind(kindParameter)
-            .executeBazelBesCommand();
-
-    Build.QueryResult result = QueryResolver.getQueryResultForProcess(bazelProcess);
-
-    List<BuildTargetIdentifier> targets =
-        result.getTargetList().stream()
-            .map(Build.Target::getRule)
-            .map(Build.Rule::getName)
-            .map(BuildTargetIdentifier::new)
-            .collect(Collectors.toList());
-
-    return Either.forRight(new InverseSourcesResult(targets));
-  }
-
-  public Either<ResponseError, DependencySourcesResult> buildTargetDependencySources(
-      DependencySourcesParams dependencySourcesParams) {
-    LOGGER.info("buildTargetDependencySources call with param: {}", dependencySourcesParams);
-
-    List<String> targets = TargetsUtils.getTargetsUris(dependencySourcesParams.getTargets());
-
-    DependencySourcesResult result =
-        new DependencySourcesResult(
-            targets.stream()
-                .sorted()
-                .map(
-                    target -> {
-                      List<String> files =
-                          serverBuildManager.lookUpTransitiveSourceJars(target).stream()
-                              .map(
-                                  execPath ->
-                                      Uri.fromExecPath(execPath, bazelData.getExecRoot())
-                                          .toString())
-                              .collect(Collectors.toList());
-                      return new DependencySourcesItem(new BuildTargetIdentifier(target), files);
-                    })
-                .collect(Collectors.toList()));
-
-    return Either.forRight(result);
-  }
-
   public Either<ResponseError, CompileResult> buildTargetCompile(CompileParams compileParams) {
     LOGGER.info("buildTargetCompile call with param: {}", compileParams);
     return serverBuildManager.buildTargetsWithBep(compileParams.getTargets(), new ArrayList<>());

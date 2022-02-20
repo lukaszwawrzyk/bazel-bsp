@@ -18,6 +18,7 @@ java_library(
         "@maven//:ch_epfl_scala_bsp4j",
         "@maven//:io_vavr_vavr",
         "@maven//:org_eclipse_lsp4j_org_eclipse_lsp4j_jsonrpc",
+        "@maven//:com_google_guava_guava",
     ],
 )
 

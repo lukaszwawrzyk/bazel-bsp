@@ -5,6 +5,9 @@ import ch.epfl.scala.bsp4j.BuildTargetCapabilities;
 import ch.epfl.scala.bsp4j.BuildTargetDataKind;
 import ch.epfl.scala.bsp4j.BuildTargetIdentifier;
 import ch.epfl.scala.bsp4j.CppBuildTarget;
+import ch.epfl.scala.bsp4j.DependencySourcesItem;
+import ch.epfl.scala.bsp4j.DependencySourcesParams;
+import ch.epfl.scala.bsp4j.DependencySourcesResult;
 import ch.epfl.scala.bsp4j.InverseSourcesParams;
 import ch.epfl.scala.bsp4j.InverseSourcesResult;
 import ch.epfl.scala.bsp4j.JvmBuildTarget;
@@ -19,6 +22,7 @@ import ch.epfl.scala.bsp4j.SourcesItem;
 import ch.epfl.scala.bsp4j.SourcesParams;
 import ch.epfl.scala.bsp4j.SourcesResult;
 import ch.epfl.scala.bsp4j.WorkspaceBuildTargetsResult;
+import com.google.common.collect.Iterables;
 import io.vavr.collection.HashSet;
 import io.vavr.collection.List;
 import io.vavr.collection.Map;
@@ -28,6 +32,7 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
+import org.jetbrains.bsp.bazel.info.BspTargetInfo;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.FileLocation;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.TargetInfo;
 import org.jetbrains.bsp.bazel.server.bsp.utils.SourceRootGuesser;
@@ -183,6 +188,43 @@ public class BspProjectMapper {
     var documentUri = inverseSourcesParams.getTextDocument().getUri();
     var targets = project.findTargetBySource(documentUri).toList();
     return new InverseSourcesResult(targets.map(BuildTargetIdentifier::new).toJavaList());
+  }
+
+  public DependencySourcesResult dependencySources(
+      Project project, DependencySourcesParams dependencySourcesParams) {
+    var labels = toLabels(dependencySourcesParams.getTargets());
+    var items = labels.map(label -> getDependencySourcesItem(project, label));
+    return new DependencySourcesResult(items.toJavaList());
+  }
+
+  private DependencySourcesItem getDependencySourcesItem(Project project, String label) {
+    var target = project.getTargets().get(label);
+    var sources =
+        target
+            .map(
+                t -> {
+                  // do not return source jars of imported
+                  // modules, neither source jars that other
+                  // imported modules will report
+                  var deps =
+                      project.getTransitiveDependencies(
+                          t, dep -> !project.getRootTargetLabels().contains(dep.getId()));
+                  return deps.flatMap(
+                      info -> {
+                        if (info.getJavaTargetInfo() != null) {
+                          return HashSet.ofAll(
+                                  Iterables.concat(
+                                      info.getJavaTargetInfo().getJarsList(),
+                                      info.getJavaTargetInfo().getGeneratedJarsList()))
+                              .flatMap(BspTargetInfo.JvmOutputs::getSourceJarsList)
+                              .map(this::toBspUri);
+                        } else {
+                          return HashSet.of();
+                        }
+                      });
+                })
+            .getOrElse(HashSet.of());
+    return new DependencySourcesItem(new BuildTargetIdentifier(label), sources.toJavaList());
   }
 
   private String toBspUri(FileLocation file) {

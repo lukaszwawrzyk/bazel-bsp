@@ -101,7 +101,7 @@ public class BuildServerImpl implements BuildServer {
       DependencySourcesParams dependencySourcesParams) {
     return serverRequestHelpers.executeCommand(
         "buildTargetDependencySources",
-        () -> buildServerService.buildTargetDependencySources(dependencySourcesParams));
+        () -> projectSyncService.buildTargetDependencySources(dependencySourcesParams));
   }
 
   @Override
@@ -135,10 +135,10 @@ public class BuildServerImpl implements BuildServer {
         "buildTargetCleanCache", () -> buildServerService.buildTargetCleanCache(cleanCacheParams));
   }
 
-  // TODO: Implement Dependency Modules
   @Override
   public CompletableFuture<DependencyModulesResult> buildTargetDependencyModules(
       DependencyModulesParams params) {
-    return CompletableFuture.completedFuture(new DependencyModulesResult(ImmutableList.of()));
+    return serverRequestHelpers.executeCommand(
+            "buildTargetDependencyModules", () -> projectSyncService.buildTargetDependencyModules(params));
   }
 }
