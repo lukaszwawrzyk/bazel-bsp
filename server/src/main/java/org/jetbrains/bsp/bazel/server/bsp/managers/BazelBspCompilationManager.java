@@ -48,19 +48,25 @@ public class BazelBspCompilationManager {
 
     cacheProtoLocations(diagnosticsProtosLocations, queryResult);
 
-    StatusCode exitCode =
+    var result =
         bazelRunner
             .commandBuilder()
             .build()
             .withFlags(extraFlags)
             .withTargets(bazelTargets)
             .executeBazelBesCommand()
-            .waitAndGetResult()
-            .getStatusCode();
+            .waitAndGetResult();
 
     emitDiagnosticsFromCache(diagnosticsProtosLocations);
 
-    return Either.forRight(new CompileResult(exitCode));
+    if (result.getStatusCode() != StatusCode.OK) {
+      throw new RuntimeException(result.getJoinedStderr() + result.getStdout());
+    }
+
+    // TODO use separate method to return Either<ResponseError, CompileResult> and use it with bsp
+    // endpoints, but internally this method has to return the BazelProcessResult and surface the
+    // output of command if it fails to the client. Otherwise it is easy to miss error root cause.
+    return Either.forRight(new CompileResult(result.getStatusCode()));
   }
 
   private void emitDiagnosticsFromCache(Map<String, String> diagnosticsProtosLocations) {

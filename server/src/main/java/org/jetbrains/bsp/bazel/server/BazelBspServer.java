@@ -84,10 +84,10 @@ public class BazelBspServer {
     BazelBspQueryManager bazelBspQueryManager =
         new BazelBspQueryManager(
             bazelBspServerConfig.getProjectView(), bazelData, bazelRunner, bazelBspTargetManager);
-    ProjectStore projectStore = new ProjectStore();
+    ProjectStore projectStore = new ProjectStore(projectResolver);
     BspProjectMapper bspProjectMapper = new BspProjectMapper(bazelPathsResolver);
     ProjectSyncService projectSyncService =
-        new ProjectSyncService(projectResolver, bspProjectMapper, projectStore);
+        new ProjectSyncService(bspProjectMapper, projectStore);
 
     this.serverBuildManager =
         new BazelBspServerBuildManager(

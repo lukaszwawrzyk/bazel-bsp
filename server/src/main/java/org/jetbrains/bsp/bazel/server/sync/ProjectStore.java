@@ -2,24 +2,38 @@ package org.jetbrains.bsp.bazel.server.sync;
 
 public class ProjectStore {
   private Project project;
+  private final ProjectResolver projectResolver;
 
-  public Project get() {
-    if (project == null) {
-      loadProject();
-    }
+  public ProjectStore(ProjectResolver projectResolver) {
+    this.projectResolver = projectResolver;
+  }
+
+  public synchronized Project refreshAndGet() {
+    loadFromBazel();
     return project;
   }
 
-  private void loadProject() {
-    // TODO load from file, fail if not exists
+  public synchronized Project get() {
+    if (project == null) {
+      loadFromDisk();
+    }
+    if (project == null) {
+      loadFromBazel();
+    }
+
+    return project;
   }
 
-  public void update(Project project) {
-    this.project = project;
-    storeProject();
+  private void loadFromBazel() {
+    project = projectResolver.resolve();
+    storeOnDisk();
   }
 
-  private void storeProject() {
+  private void loadFromDisk() {
+    // TODO implement; do nothing if no project cache data is present
+  }
+
+  private void storeOnDisk() {
     // TODO save project data to disk
   }
 }

@@ -164,6 +164,10 @@ def extract_java_info(target, ctx, result):
     )
     result["java_target_info"] = java_info
 
+def create_struct(**kwargs):
+    d = {name: kwargs[name] for name in kwargs if kwargs[name] != None}
+    return struct(**d)
+
 def extract_java_toolchain(target, ctx, result, dep_targets):
     toolchain = None
 
@@ -175,10 +179,11 @@ def extract_java_toolchain(target, ctx, result, dep_targets):
 
     toolchain_info = None
     if toolchain != None:
-        toolchain_info = struct(
+        java_home = to_file_location(toolchain.java_runtime.java_home, "", False, False) if hasattr(toolchain, "java_runtime") else None
+        toolchain_info = create_struct(
             source_version = toolchain.source_version,
             target_version = toolchain.target_version,
-            java_home = to_file_location(toolchain.java_runtime.java_home, "", False, False),
+            java_home = java_home,
         )
     else:
         for dep in dep_targets:
@@ -243,6 +248,10 @@ RUNTIME = 1
 COMPILE_DEPS = [
     "deps",
     "jars",
+    "exports",
+]
+
+PRIVATE_COMPILE_DEPS = [
     "_java_toolchain",
 ]
 
@@ -250,7 +259,7 @@ RUNTIME_DEPS = [
     "runtime_deps",
 ]
 
-ALL_DEPS = COMPILE_DEPS + RUNTIME_DEPS
+ALL_DEPS = COMPILE_DEPS + PRIVATE_COMPILE_DEPS + RUNTIME_DEPS
 
 def make_dep(dep, dependency_type):
     return struct(
@@ -277,6 +286,7 @@ def _bsp_target_info_aspect_impl(target, ctx):
     rule_attrs = ctx.rule.attr
 
     direct_dep_targets = collect_targets_from_attrs(rule_attrs, COMPILE_DEPS)
+    private_direct_dep_targets = collect_targets_from_attrs(rule_attrs, PRIVATE_COMPILE_DEPS)
     direct_deps = make_deps(direct_dep_targets, COMPILE)
 
     exported_deps_from_deps = []
@@ -302,7 +312,7 @@ def _bsp_target_info_aspect_impl(target, ctx):
 
     forwarded_deps = _get_forwarded_deps(target, ctx) + direct_exports
 
-    dep_targets = direct_dep_targets + runtime_dep_targets + direct_exports
+    dep_targets = direct_dep_targets + private_direct_dep_targets + runtime_dep_targets + direct_exports
     output_groups = dict()
     for dep in dep_targets:
         for k, v in dep.bsp_info.output_groups.items():
@@ -350,7 +360,7 @@ def _bsp_target_info_aspect_impl(target, ctx):
         file_name = file_name + "-" + str(abs(hash(".".join(aspect_ids))))
     file_name = "%s.bsp-info.textproto" % file_name
     info_file = ctx.actions.declare_file(file_name)
-    ctx.actions.write(info_file, proto.encode_text(struct(**result)))
+    ctx.actions.write(info_file, struct(**result).to_proto())
     update_sync_output_groups(output_groups, "bsp-target-info", depset([info_file]))
 
     exported_properties = dict(

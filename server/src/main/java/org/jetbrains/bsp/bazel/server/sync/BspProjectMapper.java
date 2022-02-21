@@ -22,6 +22,7 @@ import ch.epfl.scala.bsp4j.SourcesItem;
 import ch.epfl.scala.bsp4j.SourcesParams;
 import ch.epfl.scala.bsp4j.SourcesResult;
 import ch.epfl.scala.bsp4j.WorkspaceBuildTargetsResult;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import io.vavr.collection.HashSet;
 import io.vavr.collection.List;
@@ -76,11 +77,15 @@ public class BspProjectMapper {
       var scalaBuildTarget =
           new ScalaBuildTarget(
               "org.scala-lang",
-              "2.13.2",
+              "2.12.8",
               "2.12",
               ScalaPlatform.JVM,
-              List.<String>of().toJavaList());
+              ImmutableList.of(
+                  "__main__/external/io_bazel_rules_scala_scala_compiler/scala-compiler-2.12.8.jar",
+                  "__main__/external/io_bazel_rules_scala_scala_library/scala-library-2.12.8.jar",
+                  "__main__/external/io_bazel_rules_scala_scala_reflect/scala-reflect-2.12.8.jar"));
       extractJvmBuildTarget(targetInfo).forEach(scalaBuildTarget::setJvmBuildTarget);
+      buildTarget.setData(scalaBuildTarget);
     } else if (languages.contains(Language.JAVA.getName())
         || Language.KOTLIN.getAllNames().exists(languages::contains)) {
       buildTarget.setDataKind(BuildTargetDataKind.JVM);
@@ -121,12 +126,12 @@ public class BspProjectMapper {
   }
 
   private Option<JvmBuildTarget> extractJvmBuildTarget(TargetInfo targetInfo) {
-    if (targetInfo.getJavaToolchainInfo() == null) {
+    if (!targetInfo.hasJavaTargetInfo()) {
       return Option.none();
     }
 
     var toolchainInfo = targetInfo.getJavaToolchainInfo();
-    var javaHome = toBspUri(toolchainInfo.getJavaHome());
+    var javaHome = toolchainInfo.hasJavaHome() ? toBspUri(toolchainInfo.getJavaHome()) : null;
     var buildTarget = new JvmBuildTarget(javaHome, toolchainInfo.getSourceVersion());
     return Option.some(buildTarget);
   }
@@ -211,7 +216,7 @@ public class BspProjectMapper {
                           t, dep -> !project.getRootTargetLabels().contains(dep.getId()));
                   return deps.flatMap(
                       info -> {
-                        if (info.getJavaTargetInfo() != null) {
+                        if (info.hasJavaTargetInfo()) {
                           return HashSet.ofAll(
                                   Iterables.concat(
                                       info.getJavaTargetInfo().getJarsList(),

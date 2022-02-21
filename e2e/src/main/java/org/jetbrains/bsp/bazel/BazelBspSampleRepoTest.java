@@ -255,14 +255,20 @@ public class BazelBspSampleRepoTest extends BazelBspTestBaseScenario {
             "https/repo1.maven.org/maven2/com/google/guava/guava/28.0-jre/guava-28.0-jre-sources.jar");
 
     DependencySourcesItem exampleExampleDependencies =
-        new DependencySourcesItem(new BuildTargetIdentifier("//example:example"), dependencies);
+        new DependencySourcesItem(
+            new BuildTargetIdentifier("//example:example"), ImmutableList.of());
 
     DependencySourcesItem depDepDependencies =
-        new DependencySourcesItem(new BuildTargetIdentifier("//dep:dep"), dependencies);
+        new DependencySourcesItem(new BuildTargetIdentifier("//dep:dep"), ImmutableList.of());
+
+    DependencySourcesItem depDeeperDeeperDependencies =
+        new DependencySourcesItem(
+            new BuildTargetIdentifier("//dep/deeper:deeper"), ImmutableList.of());
 
     DependencySourcesResult expectedDependencies =
         new DependencySourcesResult(
-            ImmutableList.of(exampleExampleDependencies, depDepDependencies));
+            ImmutableList.of(
+                exampleExampleDependencies, depDepDependencies, depDeeperDeeperDependencies));
 
     return new BazelBspTestScenarioStep(
         "dependency sources results",
@@ -351,7 +357,9 @@ public class BazelBspSampleRepoTest extends BazelBspTestBaseScenario {
             new BuildTargetIdentifier("//dep:dep"),
             ImmutableList.of(),
             ImmutableList.of(Constants.JAVA, Constants.SCALA),
-            ImmutableList.of(new BuildTargetIdentifier("//dep/deeper:deeper")),
+            ImmutableList.of(
+                new BuildTargetIdentifier("//dep:deeper-export"),
+                new BuildTargetIdentifier("//dep/deeper:deeper")),
             new BuildTargetCapabilities(true, false, false));
     depDepTarget.setData(scalaTarget);
     depDepTarget.setDataKind(BuildTargetDataKind.SCALA);
