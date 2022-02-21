@@ -1,4 +1,4 @@
-package org.jetbrains.bsp.bazel.server.sync;
+package org.jetbrains.bsp.bazel.server.sync.model;
 
 import io.vavr.collection.HashSet;
 import io.vavr.collection.List;

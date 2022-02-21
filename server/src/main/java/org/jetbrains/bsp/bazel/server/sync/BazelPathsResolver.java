@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import org.jetbrains.bsp.bazel.bazelrunner.data.BazelData;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.FileLocation;
+import org.jetbrains.bsp.bazel.server.sync.model.Label;
 
 public class BazelPathsResolver {
   private final BazelData bazelData;
@@ -35,8 +36,8 @@ public class BazelPathsResolver {
     return fileLocation.getIsSource() && !fileLocation.getIsExternal();
   }
 
-  public Path labelToDirectory(String label) {
-    var relativePath = extractRelativePath(label);
+  public Path labelToDirectory(Label label) {
+    var relativePath = extractRelativePath(label.getValue());
     return Paths.get(bazelData.getWorkspaceRoot(), relativePath);
   }
 

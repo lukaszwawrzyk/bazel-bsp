@@ -4,6 +4,7 @@ import ch.epfl.scala.bsp4j.BuildTarget;
 import ch.epfl.scala.bsp4j.BuildTargetCapabilities;
 import ch.epfl.scala.bsp4j.BuildTargetDataKind;
 import ch.epfl.scala.bsp4j.BuildTargetIdentifier;
+import ch.epfl.scala.bsp4j.BuildTargetTag;
 import ch.epfl.scala.bsp4j.CppBuildTarget;
 import ch.epfl.scala.bsp4j.DependencySourcesItem;
 import ch.epfl.scala.bsp4j.DependencySourcesParams;
@@ -32,15 +33,18 @@ import io.vavr.control.Option;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.FileLocation;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.TargetInfo;
 import org.jetbrains.bsp.bazel.server.bsp.utils.SourceRootGuesser;
+import org.jetbrains.bsp.bazel.server.sync.model.Label;
+import org.jetbrains.bsp.bazel.server.sync.model.Language;
+import org.jetbrains.bsp.bazel.server.sync.model.Module;
+import org.jetbrains.bsp.bazel.server.sync.model.Project;
+import org.jetbrains.bsp.bazel.server.sync.model.Tag;
 
 public class BspProjectMapper {
 
-  private final TargetKindResolver targetKindResolver = new TargetKindResolver();
   private final BazelPathsResolver bazelPathsResolver;
 
   public BspProjectMapper(BazelPathsResolver bazelPathsResolver) {
@@ -48,28 +52,27 @@ public class BspProjectMapper {
   }
 
   public WorkspaceBuildTargetsResult workspaceTargets(Project project) {
-    var buildTargets = project.getRootTargets().map(this::toBuildTarget);
+    var buildTargets = project.modules().map(this::toBuildTarget);
     return new WorkspaceBuildTargetsResult(buildTargets.toJavaList());
   }
 
-  private BuildTarget toBuildTarget(TargetInfo targetInfo) {
-    var label = new BuildTargetIdentifier(targetInfo.getId());
-    var dependencies = prepareDependencies(targetInfo);
-    var languages = inferLanguages(targetInfo);
-    var capabilities = inferCapabilities(targetInfo);
-    var baseDirectory = bazelPathsResolver.labelToDirectory(label.getUri());
-    var tag = targetKindResolver.resolveBuildTargetTag(targetInfo);
+  private BuildTarget toBuildTarget(Module module) {
+    var label = toBsp(module.label());
+    var dependencies = module.directDependencies().map(this::toBsp);
+    var languages = module.languages().flatMap(Language::getAllNames);
+    var capabilities = inferCapabilities(module);
+    var tags = module.tags().map(this::toBsp);
+    var baseDirectory = module.baseDirectory();
 
     var buildTarget =
         new BuildTarget(
             label,
-            Collections.emptyList(),
+            tags.toJavaList(),
             languages.toJavaList(),
             dependencies.toJavaList(),
             capabilities);
     buildTarget.setDisplayName(label.getUri());
     buildTarget.setBaseDirectory(toBspUri(baseDirectory));
-    buildTarget.setTags(List.of(tag).toJavaList());
 
     if (languages.contains(Language.SCALA.getName())) {
       buildTarget.setDataKind(BuildTargetDataKind.SCALA);
@@ -84,12 +87,12 @@ public class BspProjectMapper {
                   "__main__/external/io_bazel_rules_scala_scala_compiler/scala-compiler-2.12.8.jar",
                   "__main__/external/io_bazel_rules_scala_scala_library/scala-library-2.12.8.jar",
                   "__main__/external/io_bazel_rules_scala_scala_reflect/scala-reflect-2.12.8.jar"));
-      extractJvmBuildTarget(targetInfo).forEach(scalaBuildTarget::setJvmBuildTarget);
+      extractJvmBuildTarget(module).forEach(scalaBuildTarget::setJvmBuildTarget);
       buildTarget.setData(scalaBuildTarget);
     } else if (languages.contains(Language.JAVA.getName())
         || Language.KOTLIN.getAllNames().exists(languages::contains)) {
       buildTarget.setDataKind(BuildTargetDataKind.JVM);
-      extractJvmBuildTarget(targetInfo).forEach(buildTarget::setData);
+      extractJvmBuildTarget(module).forEach(buildTarget::setData);
     } else if (languages.contains(Language.CPP.getName())) {
       buildTarget.setDataKind(BuildTargetDataKind.CPP);
       // TODO resolve from aspect
@@ -100,29 +103,26 @@ public class BspProjectMapper {
     return buildTarget;
   }
 
-  private BuildTargetCapabilities inferCapabilities(TargetInfo targetInfo) {
-    return new BuildTargetCapabilities(
-        true,
-        targetKindResolver.isTestTarget(targetInfo),
-        targetKindResolver.isRunnableTarget(targetInfo));
+  private BuildTargetIdentifier toBsp(Label label) {
+    return new BuildTargetIdentifier(label.getValue());
   }
 
-  private List<BuildTargetIdentifier> prepareDependencies(TargetInfo targetInfo) {
-    return List.ofAll(targetInfo.getDependenciesList())
-        .map(d -> new BuildTargetIdentifier(d.getId()));
-  }
-
-  private HashSet<String> inferLanguages(TargetInfo targetInfo) {
-    return HashSet.ofAll(targetInfo.getSourcesList())
-        .flatMap(source -> Language.all().flatMap(lang -> languageFromFile(source, lang)));
-  }
-
-  private Set<String> languageFromFile(FileLocation file, Language language) {
-    if (language.getExtensions().exists(ext -> file.getRelativePath().endsWith(ext))) {
-      return language.getAllNames();
-    } else {
-      return HashSet.empty();
+  private String toBsp(Tag tag) {
+    switch (tag) {
+      case APPLICATION:
+        return BuildTargetTag.APPLICATION;
+      case TEST:
+        return BuildTargetTag.TEST;
+      case LIBRARY:
+        return BuildTargetTag.LIBRARY;
+      case NO_IDE:
+        return BuildTargetTag.NO_IDE;
     }
+  }
+
+  private BuildTargetCapabilities inferCapabilities(Module module) {
+    return new BuildTargetCapabilities(
+        true, module.tags().contains(Tag.TEST), module.tags().contains(Tag.APPLICATION));
   }
 
   private Option<JvmBuildTarget> extractJvmBuildTarget(TargetInfo targetInfo) {
@@ -238,6 +238,10 @@ public class BspProjectMapper {
 
   private String toBspUri(Path path) {
     return path.toUri().toString();
+  }
+
+  private String toBspUri(URI uri) {
+    return uri.toString();
   }
 
   private Set<String> toLabels(java.util.List<BuildTargetIdentifier> targets) {

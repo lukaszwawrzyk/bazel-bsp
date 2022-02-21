@@ -1,5 +1,7 @@
 package org.jetbrains.bsp.bazel.server.sync;
 
+import org.jetbrains.bsp.bazel.server.sync.model.Project;
+
 public class ProjectStore {
   private Project project;
   private final ProjectResolver projectResolver;

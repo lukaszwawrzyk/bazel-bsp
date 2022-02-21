@@ -1,6 +1,7 @@
-package org.jetbrains.bsp.bazel.server.sync;
+package org.jetbrains.bsp.bazel.server.sync.model;
 
 import io.vavr.collection.HashSet;
+import io.vavr.collection.List;
 import io.vavr.collection.Map;
 import io.vavr.collection.Set;
 import io.vavr.control.Option;
@@ -9,21 +10,26 @@ import org.jetbrains.bsp.bazel.info.BspTargetInfo.TargetInfo;
 
 /**
  * Project should be the internal model of the project. Bazel/Aspect Model -> Project -> BSP Model
- * Currently Project exposes Bazel structures, but it will eventually be changed with further
- * refactorings.
  */
 public class Project {
   private final Set<String> rootTargets;
   private final Map<String, TargetInfo> targets;
   private final Map<String, String> sourceToTarget;
+  private final List<Module> modules;
 
   public Project(
       Set<String> rootTargets,
       Map<String, TargetInfo> targets,
-      Map<String, String> sourceToTarget) {
+      Map<String, String> sourceToTarget,
+      List<Module> modules) {
     this.rootTargets = rootTargets;
     this.targets = targets;
     this.sourceToTarget = sourceToTarget;
+    this.modules = modules;
+  }
+
+  public List<Module> modules() {
+    return modules;
   }
 
   public Map<String, TargetInfo> getTargets() {

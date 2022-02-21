@@ -1,30 +1,25 @@
 package org.jetbrains.bsp.bazel.server.sync;
 
-import ch.epfl.scala.bsp4j.BuildTargetTag;
+import io.vavr.collection.HashSet;
+import io.vavr.collection.Set;
 import java.util.Map;
-import org.jetbrains.bsp.bazel.commons.Constants;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.TargetInfo;
+import org.jetbrains.bsp.bazel.server.sync.model.Tag;
 
 public class TargetKindResolver {
-  private final Map<String, String> ruleSuffixToTargetType =
+  private final Map<String, Tag> ruleSuffixToTargetType =
       Map.of(
-          Constants.LIBRARY_RULE_TYPE, BuildTargetTag.LIBRARY,
-          Constants.BINARY_RULE_TYPE, BuildTargetTag.APPLICATION,
-          Constants.TEST_RULE_TYPE, BuildTargetTag.TEST);
+          "library", Tag.LIBRARY,
+          "binary", Tag.APPLICATION,
+          "test", Tag.TEST);
 
-  public boolean isTestTarget(TargetInfo targetInfo) {
-    return targetInfo.getKind().endsWith("_" + Constants.TEST_RULE_TYPE);
-  }
-
-  public boolean isRunnableTarget(TargetInfo targetInfo) {
-    return targetInfo.getKind().endsWith("_" + Constants.BINARY_RULE_TYPE);
-  }
-
-  public String resolveBuildTargetTag(TargetInfo targetInfo) {
-    return ruleSuffixToTargetType.entrySet().stream()
-        .filter(entry -> targetInfo.getKind().contains(entry.getKey()))
-        .map(Map.Entry::getValue)
-        .findFirst()
-        .orElse(BuildTargetTag.NO_IDE);
+  public Set<Tag> resolveTags(TargetInfo targetInfo) {
+    var tag =
+        ruleSuffixToTargetType.entrySet().stream()
+            .filter(entry -> targetInfo.getKind().endsWith("_" + entry.getKey()))
+            .map(Map.Entry::getValue)
+            .findFirst()
+            .orElse(Tag.NO_IDE);
+    return HashSet.of(tag);
   }
 }
