@@ -36,10 +36,6 @@ public class Project {
     return targets;
   }
 
-  public Set<TargetInfo> getRootTargets() {
-    return rootTargets.map(label -> targets.get(label).get());
-  }
-
   public Set<String> getRootTargetLabels() {
     return rootTargets;
   }

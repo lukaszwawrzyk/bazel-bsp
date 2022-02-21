@@ -69,7 +69,7 @@ public class ProjectResolver {
       var languages = inferLanguages(targetInfo);
       var tags = targetKindResolver.resolveTags(targetInfo);
       var baseDirectory = bazelPathsResolver.labelToDirectory(label);
-      return new Module(label, directDependencies, languages, tags, baseDirectory.toUri(), sourceSet);
+      return new Module(label, directDependencies, languages, tags, baseDirectory.toUri(), sourceSet, languageData);
     });
 
     return new Project(HashSet.ofAll(rootTargets), targetInfos, sourceToTarget, modules);

@@ -2,6 +2,7 @@ package org.jetbrains.bsp.bazel.server.sync.model;
 
 import io.vavr.collection.List;
 import io.vavr.collection.Set;
+import io.vavr.control.Option;
 import java.net.URI;
 
 public class Module {
@@ -11,20 +12,22 @@ public class Module {
   private final Set<Tag> tags;
   private final URI baseDirectory;
   private final SourceSet sourceSet;
+  private final Option<Object> languageData;
 
   public Module(
-      Label label,
-      List<Label> directDependencies,
-      Set<Language> languages,
-      Set<Tag> tags,
-      URI baseDirectory,
-      SourceSet sourceSet) {
+          Label label,
+          List<Label> directDependencies,
+          Set<Language> languages,
+          Set<Tag> tags,
+          URI baseDirectory,
+          SourceSet sourceSet, Option<Object> languageData) {
     this.label = label;
     this.directDependencies = directDependencies;
     this.languages = languages;
     this.tags = tags;
     this.baseDirectory = baseDirectory;
     this.sourceSet = sourceSet;
+    this.languageData = languageData;
   }
 
   public Label label() {
@@ -49,5 +52,9 @@ public class Module {
 
   public SourceSet sourceSet() {
     return sourceSet;
+  }
+
+  public Option<Object> languageData() {
+    return languageData;
   }
 }
