@@ -1,6 +1,5 @@
 package org.jetbrains.bsp.bazel.server.sync;
 
-
 import io.vavr.collection.HashSet;
 import io.vavr.collection.List;
 import io.vavr.collection.Set;

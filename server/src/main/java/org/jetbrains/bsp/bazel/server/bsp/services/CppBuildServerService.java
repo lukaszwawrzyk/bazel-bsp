@@ -20,8 +20,7 @@ public class CppBuildServerService {
   private static final String FETCH_CPP_TARGET_ASPECT = "get_cpp_target_info";
   private BazelBspAspectsManager bazelBspAspectsManager;
 
-  public CppBuildServerService(
-          BazelBspAspectsManager bazelBspAspectsManager) {
+  public CppBuildServerService(BazelBspAspectsManager bazelBspAspectsManager) {
     this.bazelBspAspectsManager = bazelBspAspectsManager;
   }
 

@@ -1,19 +1,13 @@
 package org.jetbrains.bsp.bazel.server.bsp.services;
 
 import ch.epfl.scala.bsp4j.BuildServerCapabilities;
-import ch.epfl.scala.bsp4j.BuildTargetIdentifier;
 import ch.epfl.scala.bsp4j.CleanCacheParams;
 import ch.epfl.scala.bsp4j.CleanCacheResult;
 import ch.epfl.scala.bsp4j.CompileParams;
 import ch.epfl.scala.bsp4j.CompileProvider;
 import ch.epfl.scala.bsp4j.CompileResult;
-import ch.epfl.scala.bsp4j.DependencySourcesItem;
-import ch.epfl.scala.bsp4j.DependencySourcesParams;
-import ch.epfl.scala.bsp4j.DependencySourcesResult;
 import ch.epfl.scala.bsp4j.InitializeBuildParams;
 import ch.epfl.scala.bsp4j.InitializeBuildResult;
-import ch.epfl.scala.bsp4j.InverseSourcesParams;
-import ch.epfl.scala.bsp4j.InverseSourcesResult;
 import ch.epfl.scala.bsp4j.RunParams;
 import ch.epfl.scala.bsp4j.RunProvider;
 import ch.epfl.scala.bsp4j.RunResult;
@@ -22,31 +16,24 @@ import ch.epfl.scala.bsp4j.TestParams;
 import ch.epfl.scala.bsp4j.TestProvider;
 import ch.epfl.scala.bsp4j.TestResult;
 import com.google.common.collect.Lists;
-import com.google.devtools.build.lib.query2.proto.proto2api.Build;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
-import org.jetbrains.bsp.bazel.bazelrunner.BazelProcess;
 import org.jetbrains.bsp.bazel.bazelrunner.BazelRunner;
 import org.jetbrains.bsp.bazel.bazelrunner.data.BazelData;
 import org.jetbrains.bsp.bazel.bazelrunner.data.BazelProcessResult;
-import org.jetbrains.bsp.bazel.bazelrunner.params.BazelQueryKindParameters;
-import org.jetbrains.bsp.bazel.bazelrunner.params.BazelRunnerFlag;
 import org.jetbrains.bsp.bazel.commons.Constants;
 import org.jetbrains.bsp.bazel.commons.Lazy;
-import org.jetbrains.bsp.bazel.commons.Uri;
 import org.jetbrains.bsp.bazel.projectview.model.ProjectView;
 import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerBuildManager;
 import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerLifetime;
 import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerRequestHelpers;
-import org.jetbrains.bsp.bazel.server.bsp.resolvers.QueryResolver;
 import org.jetbrains.bsp.bazel.server.bsp.resolvers.TargetsUtils;
 
 public class BuildServerService {
@@ -62,12 +49,12 @@ public class BuildServerService {
   private final ProjectView projectView;
 
   public BuildServerService(
-          BazelBspServerRequestHelpers serverRequestHelpers,
-          BazelBspServerLifetime serverLifetime,
-          BazelBspServerBuildManager serverBuildManager,
-          BazelData bazelData,
-          BazelRunner bazelRunner,
-          ProjectView projectView) {
+      BazelBspServerRequestHelpers serverRequestHelpers,
+      BazelBspServerLifetime serverLifetime,
+      BazelBspServerBuildManager serverBuildManager,
+      BazelData bazelData,
+      BazelRunner bazelRunner,
+      ProjectView projectView) {
     this.serverRequestHelpers = serverRequestHelpers;
     this.serverLifetime = serverLifetime;
     this.serverBuildManager = serverBuildManager;

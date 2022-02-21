@@ -78,7 +78,9 @@ public class BazelBspServer {
     BazelPathsResolver bazelPathsResolver = new BazelPathsResolver(bazelData);
     ProjectResolver projectResolver =
         new ProjectResolver(
-            bazelBspAspectsManager, new ProjectViewStore(bazelBspServerConfig.getProjectView()), bazelPathsResolver);
+            bazelBspAspectsManager,
+            new ProjectViewStore(bazelBspServerConfig.getProjectView()),
+            bazelPathsResolver);
     BazelBspQueryManager bazelBspQueryManager =
         new BazelBspQueryManager(
             bazelBspServerConfig.getProjectView(), bazelData, bazelRunner, bazelBspTargetManager);
@@ -111,8 +113,7 @@ public class BazelBspServer {
     JavaBuildServerService javaBuildServerService =
         new JavaBuildServerService(
             bazelBspCompilationManager, bazelBspQueryManager, bazelData, bazelRunner);
-    CppBuildServerService cppBuildServerService =
-        new CppBuildServerService(bazelBspAspectsManager);
+    CppBuildServerService cppBuildServerService = new CppBuildServerService(bazelBspAspectsManager);
 
     JvmBuildServer jvmBuildServer =
         new JvmBuildServerImpl(jvmBuildServerService, serverRequestHelpers);

@@ -182,7 +182,8 @@ public class BepServer extends PublishBuildEventGrpc.PublishBuildEventImplBase {
   }
 
   private void fetchOutputGroup(OutputGroup outputGroup) {
-    this.bepOutput.getFilesFromOutputGroup(outputGroup)
+    this.bepOutput
+        .getFilesFromOutputGroup(outputGroup)
         .flatMap(pathProtoUri -> ClasspathParser.fromAspect(pathProtoUri).stream())
         .peek(path -> LOGGER.info("Found path " + path))
         .forEach(

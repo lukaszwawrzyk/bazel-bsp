@@ -24,10 +24,10 @@ public class BazelBspServerBuildManager {
   private BepServer bepServer;
 
   public BazelBspServerBuildManager(
-          BazelBspCompilationManager bazelBspCompilationManager,
-          BazelBspAspectsManager bazelBspAspectsManager,
-          BazelBspTargetManager bazelBspTargetManager,
-          BazelBspQueryManager bazelBspQueryManager) {
+      BazelBspCompilationManager bazelBspCompilationManager,
+      BazelBspAspectsManager bazelBspAspectsManager,
+      BazelBspTargetManager bazelBspTargetManager,
+      BazelBspQueryManager bazelBspQueryManager) {
     this.bazelBspCompilationManager = bazelBspCompilationManager;
     this.bazelBspAspectsManager = bazelBspAspectsManager;
     this.bazelBspTargetManager = bazelBspTargetManager;

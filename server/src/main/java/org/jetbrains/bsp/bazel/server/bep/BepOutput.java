@@ -1,9 +1,9 @@
 package org.jetbrains.bsp.bazel.server.bep;
 
 import com.google.common.collect.Queues;
-import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos.OutputGroup;
-import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos.NamedSetOfFiles;
 import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos.BuildEventId;
+import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos.NamedSetOfFiles;
+import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos.OutputGroup;
 import io.vavr.API;
 import java.net.URI;
 import java.util.HashMap;

@@ -22,7 +22,6 @@ import ch.epfl.scala.bsp4j.SourcesResult;
 import ch.epfl.scala.bsp4j.TestParams;
 import ch.epfl.scala.bsp4j.TestResult;
 import ch.epfl.scala.bsp4j.WorkspaceBuildTargetsResult;
-import com.google.common.collect.ImmutableList;
 import java.util.concurrent.CompletableFuture;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -139,6 +138,7 @@ public class BuildServerImpl implements BuildServer {
   public CompletableFuture<DependencyModulesResult> buildTargetDependencyModules(
       DependencyModulesParams params) {
     return serverRequestHelpers.executeCommand(
-            "buildTargetDependencyModules", () -> projectSyncService.buildTargetDependencyModules(params));
+        "buildTargetDependencyModules",
+        () -> projectSyncService.buildTargetDependencyModules(params));
   }
 }
