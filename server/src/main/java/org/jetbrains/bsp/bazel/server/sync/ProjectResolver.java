@@ -1,5 +1,7 @@
 package org.jetbrains.bsp.bazel.server.sync;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import ch.epfl.scala.bsp4j.BuildTargetIdentifier;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.TextFormat;
@@ -10,7 +12,6 @@ import io.vavr.collection.List;
 import io.vavr.collection.Map;
 import java.io.IOException;
 import java.net.URI;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.function.Function;

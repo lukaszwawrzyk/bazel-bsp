@@ -1,5 +1,4 @@
-load("@rules_java//java:defs.bzl", "java_library")
-load("@rules_java//java:defs.bzl", "java_proto_library")
+load("@rules_java//java:defs.bzl", "java_library", "java_proto_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 
 java_library(
@@ -16,9 +15,9 @@ java_library(
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/utils",
         "@com_google_protobuf//:protobuf_java",
         "@maven//:ch_epfl_scala_bsp4j",
+        "@maven//:com_google_guava_guava",
         "@maven//:io_vavr_vavr",
         "@maven//:org_eclipse_lsp4j_org_eclipse_lsp4j_jsonrpc",
-        "@maven//:com_google_guava_guava",
     ],
 )
 

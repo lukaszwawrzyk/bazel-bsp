@@ -59,7 +59,7 @@ def file_location(file):
         file.path,
         file.root.path if not file.is_source else "",
         file.is_source,
-        file.owner.workspace_root.startswith("..")
+        file.owner.workspace_root.startswith(".."),
     )
 
 def _strip_root_exec_path_fragment(path, root_fragment):
