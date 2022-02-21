@@ -5,6 +5,7 @@ import io.vavr.collection.List;
 import io.vavr.collection.Map;
 import io.vavr.collection.Set;
 import io.vavr.control.Option;
+import java.net.URI;
 import java.util.function.Predicate;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.TargetInfo;
 
@@ -14,13 +15,13 @@ import org.jetbrains.bsp.bazel.info.BspTargetInfo.TargetInfo;
 public class Project {
   private final Set<String> rootTargets;
   private final Map<String, TargetInfo> targets;
-  private final Map<String, String> sourceToTarget;
+  private final Map<URI, Label> sourceToTarget;
   private final List<Module> modules;
 
   public Project(
       Set<String> rootTargets,
       Map<String, TargetInfo> targets,
-      Map<String, String> sourceToTarget,
+      Map<URI, Label> sourceToTarget,
       List<Module> modules) {
     this.rootTargets = rootTargets;
     this.targets = targets;
@@ -32,6 +33,11 @@ public class Project {
     return modules;
   }
 
+  // TODO optimize
+  public Option<Module> findModule(Label label) {
+    return modules.find(m -> m.label() == label);
+  }
+
   public Map<String, TargetInfo> getTargets() {
     return targets;
   }
@@ -40,7 +46,7 @@ public class Project {
     return rootTargets;
   }
 
-  public Option<String> findTargetBySource(String documentUri) {
+  public Option<Label> findTargetBySource(URI documentUri) {
     return sourceToTarget.get(documentUri);
   }
 

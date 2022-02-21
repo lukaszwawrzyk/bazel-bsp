@@ -12,21 +12,25 @@ public class Module {
   private final Set<Tag> tags;
   private final URI baseDirectory;
   private final SourceSet sourceSet;
+  private final Set<URI> resources;
   private final Option<Object> languageData;
 
   public Module(
-          Label label,
-          List<Label> directDependencies,
-          Set<Language> languages,
-          Set<Tag> tags,
-          URI baseDirectory,
-          SourceSet sourceSet, Option<Object> languageData) {
+      Label label,
+      List<Label> directDependencies,
+      Set<Language> languages,
+      Set<Tag> tags,
+      URI baseDirectory,
+      SourceSet sourceSet,
+      Set<URI> resources,
+      Option<Object> languageData) {
     this.label = label;
     this.directDependencies = directDependencies;
     this.languages = languages;
     this.tags = tags;
     this.baseDirectory = baseDirectory;
     this.sourceSet = sourceSet;
+    this.resources = resources;
     this.languageData = languageData;
   }
 
@@ -52,6 +56,10 @@ public class Module {
 
   public SourceSet sourceSet() {
     return sourceSet;
+  }
+
+  public Set<URI> resources() {
+    return resources;
   }
 
   public Option<Object> languageData() {

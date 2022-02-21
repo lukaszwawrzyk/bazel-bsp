@@ -2,41 +2,31 @@ package org.jetbrains.bsp.bazel.server.sync;
 
 import ch.epfl.scala.bsp4j.BuildTarget;
 import ch.epfl.scala.bsp4j.BuildTargetCapabilities;
-import ch.epfl.scala.bsp4j.BuildTargetDataKind;
 import ch.epfl.scala.bsp4j.BuildTargetIdentifier;
 import ch.epfl.scala.bsp4j.BuildTargetTag;
-import ch.epfl.scala.bsp4j.CppBuildTarget;
 import ch.epfl.scala.bsp4j.DependencySourcesItem;
 import ch.epfl.scala.bsp4j.DependencySourcesParams;
 import ch.epfl.scala.bsp4j.DependencySourcesResult;
 import ch.epfl.scala.bsp4j.InverseSourcesParams;
 import ch.epfl.scala.bsp4j.InverseSourcesResult;
-import ch.epfl.scala.bsp4j.JvmBuildTarget;
 import ch.epfl.scala.bsp4j.ResourcesItem;
 import ch.epfl.scala.bsp4j.ResourcesParams;
 import ch.epfl.scala.bsp4j.ResourcesResult;
-import ch.epfl.scala.bsp4j.ScalaBuildTarget;
-import ch.epfl.scala.bsp4j.ScalaPlatform;
 import ch.epfl.scala.bsp4j.SourceItem;
 import ch.epfl.scala.bsp4j.SourceItemKind;
 import ch.epfl.scala.bsp4j.SourcesItem;
 import ch.epfl.scala.bsp4j.SourcesParams;
 import ch.epfl.scala.bsp4j.SourcesResult;
 import ch.epfl.scala.bsp4j.WorkspaceBuildTargetsResult;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import io.vavr.collection.HashSet;
-import io.vavr.collection.List;
-import io.vavr.collection.Map;
 import io.vavr.collection.Set;
-import io.vavr.control.Option;
 import java.net.URI;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.Collections;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.FileLocation;
-import org.jetbrains.bsp.bazel.info.BspTargetInfo.TargetInfo;
-import org.jetbrains.bsp.bazel.server.bsp.utils.SourceRootGuesser;
+import org.jetbrains.bsp.bazel.server.sync.languages.LanguageHub;
 import org.jetbrains.bsp.bazel.server.sync.model.Label;
 import org.jetbrains.bsp.bazel.server.sync.model.Language;
 import org.jetbrains.bsp.bazel.server.sync.model.Module;
@@ -46,9 +36,11 @@ import org.jetbrains.bsp.bazel.server.sync.model.Tag;
 public class BspProjectMapper {
 
   private final BazelPathsResolver bazelPathsResolver;
+  private final LanguageHub languageHub;
 
-  public BspProjectMapper(BazelPathsResolver bazelPathsResolver) {
+  public BspProjectMapper(BazelPathsResolver bazelPathsResolver, LanguageHub languageHub) {
     this.bazelPathsResolver = bazelPathsResolver;
+    this.languageHub = languageHub;
   }
 
   public WorkspaceBuildTargetsResult workspaceTargets(Project project) {
@@ -74,31 +66,11 @@ public class BspProjectMapper {
     buildTarget.setDisplayName(label.getUri());
     buildTarget.setBaseDirectory(toBspUri(baseDirectory));
 
-    if (languages.contains(Language.SCALA.getName())) {
-      buildTarget.setDataKind(BuildTargetDataKind.SCALA);
-      // TODO resolve from aspect
-      var scalaBuildTarget =
-          new ScalaBuildTarget(
-              "org.scala-lang",
-              "2.12.8",
-              "2.12",
-              ScalaPlatform.JVM,
-              ImmutableList.of(
-                  "__main__/external/io_bazel_rules_scala_scala_compiler/scala-compiler-2.12.8.jar",
-                  "__main__/external/io_bazel_rules_scala_scala_library/scala-library-2.12.8.jar",
-                  "__main__/external/io_bazel_rules_scala_scala_reflect/scala-reflect-2.12.8.jar"));
-      extractJvmBuildTarget(module).forEach(scalaBuildTarget::setJvmBuildTarget);
-      buildTarget.setData(scalaBuildTarget);
-    } else if (languages.contains(Language.JAVA.getName())
-        || Language.KOTLIN.getAllNames().exists(languages::contains)) {
-      buildTarget.setDataKind(BuildTargetDataKind.JVM);
-      extractJvmBuildTarget(module).forEach(buildTarget::setData);
-    } else if (languages.contains(Language.CPP.getName())) {
-      buildTarget.setDataKind(BuildTargetDataKind.CPP);
-      // TODO resolve from aspect
-      var cppBuildTarget = new CppBuildTarget(null, "", "", "");
-      buildTarget.setData(cppBuildTarget);
-    }
+    languageHub
+        .getPlugin(module.languages())
+        .forEach(
+            plugin ->
+                module.languageData().forEach(data -> plugin.setModuleData(data, buildTarget)));
 
     return buildTarget;
   }
@@ -117,6 +89,8 @@ public class BspProjectMapper {
         return BuildTargetTag.LIBRARY;
       case NO_IDE:
         return BuildTargetTag.NO_IDE;
+      default:
+        throw new RuntimeException("Unexpected tag: " + tag);
     }
   }
 
@@ -125,74 +99,65 @@ public class BspProjectMapper {
         true, module.tags().contains(Tag.TEST), module.tags().contains(Tag.APPLICATION));
   }
 
-  private Option<JvmBuildTarget> extractJvmBuildTarget(TargetInfo targetInfo) {
-    if (!targetInfo.hasJavaTargetInfo()) {
-      return Option.none();
-    }
-
-    var toolchainInfo = targetInfo.getJavaToolchainInfo();
-    var javaHome = toolchainInfo.hasJavaHome() ? toBspUri(toolchainInfo.getJavaHome()) : null;
-    var buildTarget = new JvmBuildTarget(javaHome, toolchainInfo.getSourceVersion());
-    return Option.some(buildTarget);
-  }
-
   public SourcesResult sources(Project project, SourcesParams sourcesParams) {
     // TODO cover `bepServer.getBuildTargetsSources().put(label, srcs)` line from original
     // implementation
     // TODO handle generated sources. google's plugin doesn't ever mark source root as generated
     // we need a use case with some generated files and then figure out how to handle it
     var labels = toLabels(sourcesParams.getTargets());
-    var targets = project.getTargets();
-    var sourcesItems = labels.map(label -> getSourcesItem(targets, label));
+    var sourcesItems =
+        labels.map(
+            label ->
+                project
+                    .findModule(label)
+                    .map(this::toSourcesItem)
+                    .getOrElse(() -> emptySourcesItem(label)));
     return new SourcesResult(sourcesItems.toJavaList());
   }
 
-  private SourcesItem getSourcesItem(Map<String, TargetInfo> targets, String label) {
-    var target = targets.get(label);
-    var sourceItems = target.map(this::getSourceItems).getOrElse(List.of());
-    var sourcesItem = new SourcesItem(new BuildTargetIdentifier(label), sourceItems.toJavaList());
-    var roots = inferSourceRoots(sourceItems);
-    sourcesItem.setRoots(roots.asJava());
+  private SourcesItem toSourcesItem(Module module) {
+    var sourceSet = module.sourceSet();
+    var sourceItems =
+        sourceSet
+            .sources()
+            .map(source -> new SourceItem(toBspUri(source), SourceItemKind.FILE, false));
+    var sourceRoots = sourceSet.sourceRoots().map(this::toBspUri);
+
+    var sourcesItem = new SourcesItem(toBsp(module.label()), sourceItems.toJavaList());
+    sourcesItem.setRoots(sourceRoots.toJavaList());
     return sourcesItem;
   }
 
-  private List<SourceItem> getSourceItems(TargetInfo info) {
-    return List.ofAll(info.getSourcesList())
-        .map(file -> new SourceItem(toBspUri(file), SourceItemKind.FILE, false));
-  }
-
-  private List<String> inferSourceRoots(List<SourceItem> items) {
-    return items.map(this::inferSourceRoot).distinct();
+  private SourcesItem emptySourcesItem(Label label) {
+    return new SourcesItem(toBsp(label), Collections.emptyList());
   }
 
   public ResourcesResult resources(Project project, ResourcesParams resourcesParams) {
     var labels = toLabels(resourcesParams.getTargets());
-    var targets = project.getTargets();
-    var resourcesItems = labels.map(label -> getResourcesItem(targets, label));
+    var resourcesItems =
+        labels.map(
+            label ->
+                project
+                    .findModule(label)
+                    .map(this::toResourcesItem)
+                    .getOrElse(() -> emptyResourcesItem(label)));
     return new ResourcesResult(resourcesItems.toJavaList());
   }
 
-  private ResourcesItem getResourcesItem(Map<String, TargetInfo> targets, String label) {
-    var target = targets.get(label);
-    var resourceItems =
-        target
-            .map(info -> List.ofAll(info.getResourcesList()).map(this::toBspUri))
-            .getOrElse(List.of());
-
-    return new ResourcesItem(new BuildTargetIdentifier(label), resourceItems.toJavaList());
+  private ResourcesItem toResourcesItem(Module module) {
+    var resources = module.resources().map(this::toBspUri);
+    return new ResourcesItem(toBsp(module.label()), resources.toJavaList());
   }
 
-  private String inferSourceRoot(SourceItem item) {
-    var path = Paths.get(URI.create(item.getUri()));
-    var rootPath = SourceRootGuesser.getSourcesRoot(path);
-    return rootPath.toUri().toString();
+  private ResourcesItem emptyResourcesItem(Label label) {
+    return new ResourcesItem(toBsp(label), Collections.emptyList());
   }
 
   public InverseSourcesResult inverseSources(
       Project project, InverseSourcesParams inverseSourcesParams) {
-    var documentUri = inverseSourcesParams.getTextDocument().getUri();
-    var targets = project.findTargetBySource(documentUri).toList();
-    return new InverseSourcesResult(targets.map(BuildTargetIdentifier::new).toJavaList());
+    var documentUri = URI.create(inverseSourcesParams.getTextDocument().getUri());
+    var targets = project.findTargetBySource(documentUri).map(this::toBsp).toList();
+    return new InverseSourcesResult(targets.toJavaList());
   }
 
   public DependencySourcesResult dependencySources(
@@ -244,7 +209,7 @@ public class BspProjectMapper {
     return uri.toString();
   }
 
-  private Set<String> toLabels(java.util.List<BuildTargetIdentifier> targets) {
-    return HashSet.ofAll(targets).map(BuildTargetIdentifier::getUri);
+  private Set<Label> toLabels(java.util.List<BuildTargetIdentifier> targets) {
+    return HashSet.ofAll(targets).map(BuildTargetIdentifier::getUri).map(Label::from);
   }
 }

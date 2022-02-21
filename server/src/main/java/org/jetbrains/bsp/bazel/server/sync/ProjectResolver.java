@@ -15,29 +15,36 @@ import io.vavr.control.Option;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.function.Function;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.TargetInfo;
 import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspAspectsManager;
+import org.jetbrains.bsp.bazel.server.bsp.utils.SourceRootGuesser;
+import org.jetbrains.bsp.bazel.server.sync.languages.LanguageHub;
 import org.jetbrains.bsp.bazel.server.sync.model.Label;
 import org.jetbrains.bsp.bazel.server.sync.model.Language;
 import org.jetbrains.bsp.bazel.server.sync.model.Module;
 import org.jetbrains.bsp.bazel.server.sync.model.Project;
+import org.jetbrains.bsp.bazel.server.sync.model.SourceSet;
 
 /** Responsible for querying bazel and constructing Project instance */
 public class ProjectResolver {
   private final BazelBspAspectsManager bazelBspAspectsManager;
   private final ProjectViewStore projectViewStore;
+  private final LanguageHub languageHub;
   private final BazelPathsResolver bazelPathsResolver;
   private final TargetKindResolver targetKindResolver = new TargetKindResolver();
 
   public ProjectResolver(
       BazelBspAspectsManager bazelBspAspectsManager,
       ProjectViewStore projectViewStore,
+      LanguageHub languageHub,
       BazelPathsResolver bazelPathsResolver) {
     this.bazelBspAspectsManager = bazelBspAspectsManager;
     this.projectViewStore = projectViewStore;
+    this.languageHub = languageHub;
     this.bazelPathsResolver = bazelPathsResolver;
   }
 
@@ -62,22 +69,46 @@ public class ProjectResolver {
 
     var sourceToTarget = buildReverseSourceMapping(targetInfos);
 
-    List<Module> modules = List.ofAll(rootTargets).map(id -> {
-      var targetInfo = targetInfos.get(id).get();
-      var label = Label.from(targetInfo.getId());
-      var directDependencies = List.ofAll(targetInfo.getDependenciesList()).map(dep -> Label.from(dep.getId()));
-      var languages = inferLanguages(targetInfo);
-      var tags = targetKindResolver.resolveTags(targetInfo);
-      var baseDirectory = bazelPathsResolver.labelToDirectory(label);
-      return new Module(label, directDependencies, languages, tags, baseDirectory.toUri(), sourceSet, languageData);
-    });
+    List<Module> modules =
+        List.ofAll(rootTargets)
+            .map(
+                id -> {
+                  var targetInfo = targetInfos.get(id).get();
+                  var label = Label.from(targetInfo.getId());
+                  var directDependencies =
+                      List.ofAll(targetInfo.getDependenciesList())
+                          .map(dep -> Label.from(dep.getId()));
+                  var languages = inferLanguages(targetInfo);
+                  var tags = targetKindResolver.resolveTags(targetInfo);
+                  var baseDirectory = bazelPathsResolver.labelToDirectory(label);
+                  Option<Object> languageData =
+                      languageHub.getPlugin(languages).flatMap(x -> x.resolveModule(targetInfo));
+                  var sources =
+                      HashSet.ofAll(targetInfo.getSourcesList()).map(bazelPathsResolver::resolve);
+                  var sourceRoots = sources.map(SourceRootGuesser::getSourcesRoot);
+                  var sourceSet =
+                      new SourceSet(sources.map(Path::toUri), sourceRoots.map(Path::toUri));
+                  var resources =
+                      HashSet.ofAll(targetInfo.getResourcesList())
+                          .map(bazelPathsResolver::resolve)
+                          .map(Path::toUri);
+                  return new Module(
+                      label,
+                      directDependencies,
+                      languages,
+                      tags,
+                      baseDirectory.toUri(),
+                      sourceSet,
+                      resources,
+                      languageData);
+                });
 
     return new Project(HashSet.ofAll(rootTargets), targetInfos, sourceToTarget, modules);
   }
 
   private Set<Language> inferLanguages(TargetInfo targetInfo) {
     return HashSet.ofAll(targetInfo.getSourcesList())
-            .flatMap(source -> Language.all().flatMap(lang -> languageFromFile(source, lang).toSet()));
+        .flatMap(source -> Language.all().flatMap(lang -> languageFromFile(source, lang).toSet()));
   }
 
   private Option<Language> languageFromFile(BspTargetInfo.FileLocation file, Language language) {
@@ -88,8 +119,8 @@ public class ProjectResolver {
     }
   }
 
-  private Map<String, String> buildReverseSourceMapping(Map<String, TargetInfo> targetInfoMap) {
-    var output = new java.util.HashMap<String, String>();
+  private Map<URI, Label> buildReverseSourceMapping(Map<String, TargetInfo> targetInfoMap) {
+    var output = new java.util.HashMap<URI, Label>();
     targetInfoMap
         .values()
         .forEach(
@@ -98,7 +129,7 @@ public class ProjectResolver {
                     .forEach(
                         source -> {
                           var path = bazelPathsResolver.resolve(source);
-                          output.put(path.toUri().toString(), target.getId());
+                          output.put(path.toUri(), Label.from(target.getId()));
                         }));
     return HashMap.ofAll(output);
   }

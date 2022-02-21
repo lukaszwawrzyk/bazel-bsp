@@ -1,5 +1,9 @@
 package org.jetbrains.bsp.bazel.server.sync.languages.scala;
 
+import ch.epfl.scala.bsp4j.BuildTarget;
+import ch.epfl.scala.bsp4j.BuildTargetDataKind;
+import ch.epfl.scala.bsp4j.ScalaBuildTarget;
+import ch.epfl.scala.bsp4j.ScalaPlatform;
 import io.vavr.collection.HashSet;
 import io.vavr.control.Option;
 import java.net.URI;
@@ -8,7 +12,7 @@ import org.jetbrains.bsp.bazel.server.sync.BazelPathsResolver;
 import org.jetbrains.bsp.bazel.server.sync.languages.LanguagePlugin;
 import org.jetbrains.bsp.bazel.server.sync.languages.java.JavaLanguagePlugin;
 
-public class ScalaLanguagePlugin implements LanguagePlugin<ScalaModule> {
+public class ScalaLanguagePlugin extends LanguagePlugin<ScalaModule> {
   private final JavaLanguagePlugin javaLanguagePlugin;
   private final BazelPathsResolver bazelPathsResolver;
 
@@ -30,5 +34,26 @@ public class ScalaLanguagePlugin implements LanguagePlugin<ScalaModule> {
     var sdk = new ScalaSdk("org.scala-lang", "2.12.8", "2.12", compilerJars);
     var module = new ScalaModule(sdk, javaLanguagePlugin.resolveModule(targetInfo));
     return Option.some(module);
+  }
+
+  @Override
+  protected void applyModuleData(ScalaModule scalaModule, BuildTarget buildTarget) {
+    var sdk = scalaModule.sdk();
+
+    var scalaBuildTarget =
+        new ScalaBuildTarget(
+            sdk.organization(),
+            sdk.version(),
+            sdk.binaryVersion(),
+            ScalaPlatform.JVM,
+            sdk.compilerJars().map(URI::toString).toJavaList());
+
+    scalaModule
+        .javaModule()
+        .map(javaLanguagePlugin::toJvmBuildTarget)
+        .forEach(scalaBuildTarget::setJvmBuildTarget);
+
+    buildTarget.setDataKind(BuildTargetDataKind.SCALA);
+    buildTarget.setData(scalaBuildTarget);
   }
 }
