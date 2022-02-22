@@ -3,135 +3,60 @@ package org.jetbrains.bsp.bazel.server.sync;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ch.epfl.scala.bsp4j.BuildTargetIdentifier;
-import com.google.common.collect.Iterables;
 import com.google.protobuf.TextFormat;
 import io.vavr.API;
-import io.vavr.collection.HashMap;
 import io.vavr.collection.HashSet;
 import io.vavr.collection.List;
 import io.vavr.collection.Map;
-import io.vavr.collection.Set;
-import io.vavr.control.Option;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.function.Function;
-import org.jetbrains.bsp.bazel.info.BspTargetInfo;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.TargetInfo;
+import org.jetbrains.bsp.bazel.server.bep.BepOutput;
 import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspAspectsManager;
-import org.jetbrains.bsp.bazel.server.bsp.utils.SourceRootGuesser;
-import org.jetbrains.bsp.bazel.server.sync.languages.LanguageHub;
-import org.jetbrains.bsp.bazel.server.sync.model.Label;
-import org.jetbrains.bsp.bazel.server.sync.model.Language;
-import org.jetbrains.bsp.bazel.server.sync.model.Module;
 import org.jetbrains.bsp.bazel.server.sync.model.Project;
-import org.jetbrains.bsp.bazel.server.sync.model.SourceSet;
 
 /** Responsible for querying bazel and constructing Project instance */
 public class ProjectResolver {
+  private static final String ASPECT_NAME = "bsp_target_info_aspect";
+  private static final String ASPECT_OUTPUT_GROUP = "bsp-target-info-transitive-deps";
+
   private final BazelBspAspectsManager bazelBspAspectsManager;
-  private final ProjectViewStore projectViewStore;
-  private final LanguageHub languageHub;
-  private final BazelPathsResolver bazelPathsResolver;
-  private final TargetKindResolver targetKindResolver = new TargetKindResolver();
+  private final ProjectViewProvider projectViewProvider;
+  private final BazelProjectMapper bazelProjectMapper;
 
   public ProjectResolver(
       BazelBspAspectsManager bazelBspAspectsManager,
-      ProjectViewStore projectViewStore,
-      LanguageHub languageHub,
-      BazelPathsResolver bazelPathsResolver) {
+      ProjectViewProvider projectViewProvider,
+      BazelProjectMapper bazelProjectMapper) {
     this.bazelBspAspectsManager = bazelBspAspectsManager;
-    this.projectViewStore = projectViewStore;
-    this.languageHub = languageHub;
-    this.bazelPathsResolver = bazelPathsResolver;
+    this.projectViewProvider = projectViewProvider;
+    this.bazelProjectMapper = bazelProjectMapper;
   }
 
   public Project resolve() {
-    var projectView = projectViewStore.current();
+    var bepOutput = buildProjectWithAspect();
+    var aspectOutputs = bepOutput.getFilesByOutputGroupNameTransitive(ASPECT_OUTPUT_GROUP);
+    var rootTargets = bepOutput.getRootTargets();
+    var targets = readTargetMapFromAspectOutputs(aspectOutputs);
+    return bazelProjectMapper.createProject(targets, HashSet.ofAll(rootTargets));
+  }
+
+  private BepOutput buildProjectWithAspect() {
+    var projectView = projectViewProvider.current();
     // TODO handle excludes
     var projectTargetRoots =
         List.ofAll(projectView.getTargets().getIncludedValues()).map(BuildTargetIdentifier::new);
-
-    var outputGroup = "bsp-target-info-transitive-deps";
-    var output =
-        bazelBspAspectsManager.fetchFilesFromOutputGroup(
-            projectTargetRoots.asJava(), "bsp_target_info_aspect", outputGroup);
-
-    var files = output.getFilesByOutputGroupNameTransitive(outputGroup);
-    var rootTargets = output.getRootTargets();
-
-    var targetInfos =
-        List.ofAll(files)
-            .map(API.unchecked(this::readTargetInfoFromFile))
-            .toMap(TargetInfo::getId, Function.identity());
-
-    var sourceToTarget = buildReverseSourceMapping(targetInfos);
-
-    List<Module> modules =
-        List.ofAll(rootTargets)
-            .map(
-                id -> {
-                  var targetInfo = targetInfos.get(id).get();
-                  var label = Label.from(targetInfo.getId());
-                  var directDependencies =
-                      List.ofAll(targetInfo.getDependenciesList())
-                          .map(dep -> Label.from(dep.getId()));
-                  var languages = inferLanguages(targetInfo);
-                  var tags = targetKindResolver.resolveTags(targetInfo);
-                  var baseDirectory = bazelPathsResolver.labelToDirectory(label);
-                  Option<Object> languageData =
-                      languageHub.getPlugin(languages).flatMap(x -> x.resolveModule(targetInfo));
-                  var sources =
-                      HashSet.ofAll(targetInfo.getSourcesList()).map(bazelPathsResolver::resolve);
-                  var sourceRoots = sources.map(SourceRootGuesser::getSourcesRoot);
-                  var sourceSet =
-                      new SourceSet(sources.map(Path::toUri), sourceRoots.map(Path::toUri));
-                  var resources =
-                      HashSet.ofAll(targetInfo.getResourcesList())
-                          .map(bazelPathsResolver::resolve)
-                          .map(Path::toUri);
-                  return new Module(
-                      label,
-                      directDependencies,
-                      languages,
-                      tags,
-                      baseDirectory.toUri(),
-                      sourceSet,
-                      resources,
-                      languageData);
-                });
-
-    return new Project(HashSet.ofAll(rootTargets), targetInfos, sourceToTarget, modules);
+    return bazelBspAspectsManager.fetchFilesFromOutputGroup(
+        projectTargetRoots.asJava(), ASPECT_NAME, ASPECT_OUTPUT_GROUP);
   }
 
-  private Set<Language> inferLanguages(TargetInfo targetInfo) {
-    return HashSet.ofAll(targetInfo.getSourcesList())
-        .flatMap(source -> Language.all().flatMap(lang -> languageFromFile(source, lang).toSet()));
-  }
-
-  private Option<Language> languageFromFile(BspTargetInfo.FileLocation file, Language language) {
-    if (language.getExtensions().exists(ext -> file.getRelativePath().endsWith(ext))) {
-      return Option.some(language);
-    } else {
-      return Option.none();
-    }
-  }
-
-  private Map<URI, Label> buildReverseSourceMapping(Map<String, TargetInfo> targetInfoMap) {
-    var output = new java.util.HashMap<URI, Label>();
-    targetInfoMap
-        .values()
-        .forEach(
-            target ->
-                Iterables.concat(target.getSourcesList(), target.getResourcesList())
-                    .forEach(
-                        source -> {
-                          var path = bazelPathsResolver.resolve(source);
-                          output.put(path.toUri(), Label.from(target.getId()));
-                        }));
-    return HashMap.ofAll(output);
+  private Map<String, TargetInfo> readTargetMapFromAspectOutputs(java.util.Set<URI> files) {
+    return List.ofAll(files)
+        .map(API.unchecked(this::readTargetInfoFromFile))
+        .toMap(TargetInfo::getId, Function.identity());
   }
 
   private TargetInfo readTargetInfoFromFile(URI uri) throws IOException {

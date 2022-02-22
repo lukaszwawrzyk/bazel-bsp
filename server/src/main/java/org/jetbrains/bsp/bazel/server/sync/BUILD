@@ -3,7 +3,7 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 
 java_library(
     name = "sync",
-    srcs = glob(["*.java"]),
+    srcs = glob(["**/*.java"]),
     visibility = ["//visibility:public"],
     deps = [
         ":bsp_target_info_java_proto",

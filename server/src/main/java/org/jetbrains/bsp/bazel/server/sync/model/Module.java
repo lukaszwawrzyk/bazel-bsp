@@ -13,6 +13,7 @@ public class Module {
   private final URI baseDirectory;
   private final SourceSet sourceSet;
   private final Set<URI> resources;
+  private final Set<URI> sourceDependencies;
   private final Option<Object> languageData;
 
   public Module(
@@ -23,6 +24,7 @@ public class Module {
       URI baseDirectory,
       SourceSet sourceSet,
       Set<URI> resources,
+      Set<URI> sourceDependencies,
       Option<Object> languageData) {
     this.label = label;
     this.directDependencies = directDependencies;
@@ -31,6 +33,7 @@ public class Module {
     this.baseDirectory = baseDirectory;
     this.sourceSet = sourceSet;
     this.resources = resources;
+    this.sourceDependencies = sourceDependencies;
     this.languageData = languageData;
   }
 
@@ -60,6 +63,10 @@ public class Module {
 
   public Set<URI> resources() {
     return resources;
+  }
+
+  public Set<URI> sourceDependencies() {
+    return sourceDependencies;
   }
 
   public Option<Object> languageData() {

@@ -5,6 +5,7 @@ import ch.epfl.scala.bsp4j.BuildTargetDataKind;
 import ch.epfl.scala.bsp4j.ScalaBuildTarget;
 import ch.epfl.scala.bsp4j.ScalaPlatform;
 import io.vavr.collection.HashSet;
+import io.vavr.collection.Set;
 import io.vavr.control.Option;
 import java.net.URI;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.TargetInfo;
@@ -34,6 +35,11 @@ public class ScalaLanguagePlugin extends LanguagePlugin<ScalaModule> {
     var sdk = new ScalaSdk("org.scala-lang", "2.12.8", "2.12", compilerJars);
     var module = new ScalaModule(sdk, javaLanguagePlugin.resolveModule(targetInfo));
     return Option.some(module);
+  }
+
+  @Override
+  public Set<URI> dependencySources(TargetInfo targetInfo) {
+    return javaLanguagePlugin.dependencySources(targetInfo);
   }
 
   @Override

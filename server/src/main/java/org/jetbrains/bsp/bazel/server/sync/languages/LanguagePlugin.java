@@ -1,13 +1,22 @@
 package org.jetbrains.bsp.bazel.server.sync.languages;
 
 import ch.epfl.scala.bsp4j.BuildTarget;
+import io.vavr.collection.HashSet;
+import io.vavr.collection.Set;
 import io.vavr.control.Option;
+import java.net.URI;
 import org.jetbrains.bsp.bazel.info.BspTargetInfo.TargetInfo;
 
-public abstract class LanguagePlugin<T> {
-  public abstract Option<T> resolveModule(TargetInfo targetInfo);
+public abstract class LanguagePlugin<T extends Object> {
+  public Option<T> resolveModule(TargetInfo targetInfo) {
+    return Option.none();
+  }
 
-  public void setModuleData(Object moduleData, BuildTarget buildTarget) {
+  public Set<URI> dependencySources(TargetInfo targetInfo) {
+    return HashSet.empty();
+  }
+
+  public final void setModuleData(Object moduleData, BuildTarget buildTarget) {
     applyModuleData((T) moduleData, buildTarget);
   }
 

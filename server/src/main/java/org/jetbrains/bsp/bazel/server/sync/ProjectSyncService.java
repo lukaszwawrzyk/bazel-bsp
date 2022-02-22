@@ -18,42 +18,42 @@ import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
 /** A facade for all project sync related methods */
 public class ProjectSyncService {
   private final BspProjectMapper bspMapper;
-  private final ProjectStore projectStore;
+  private final ProjectProvider projectProvider;
 
-  public ProjectSyncService(BspProjectMapper bspProjectMapper, ProjectStore projectStore) {
+  public ProjectSyncService(BspProjectMapper bspProjectMapper, ProjectProvider projectProvider) {
     this.bspMapper = bspProjectMapper;
-    this.projectStore = projectStore;
+    this.projectProvider = projectProvider;
   }
 
   public Either<ResponseError, WorkspaceBuildTargetsResult> workspaceBuildTargets() {
-    var project = projectStore.refreshAndGet();
+    var project = projectProvider.refreshAndGet();
     var result = bspMapper.workspaceTargets(project);
     return Either.forRight(result);
   }
 
   public Either<ResponseError, SourcesResult> buildTargetSources(SourcesParams sourcesParams) {
-    var project = projectStore.get();
+    var project = projectProvider.get();
     var result = bspMapper.sources(project, sourcesParams);
     return Either.forRight(result);
   }
 
   public Either<ResponseError, ResourcesResult> buildTargetResources(
       ResourcesParams resourcesParams) {
-    var project = projectStore.get();
+    var project = projectProvider.get();
     var result = bspMapper.resources(project, resourcesParams);
     return Either.forRight(result);
   }
 
   public Either<ResponseError, InverseSourcesResult> buildTargetInverseSources(
       InverseSourcesParams inverseSourcesParams) {
-    var project = projectStore.get();
+    var project = projectProvider.get();
     var result = bspMapper.inverseSources(project, inverseSourcesParams);
     return Either.forRight(result);
   }
 
   public Either<ResponseError, DependencySourcesResult> buildTargetDependencySources(
       DependencySourcesParams dependencySourcesParams) {
-    var project = projectStore.get();
+    var project = projectProvider.get();
     var result = bspMapper.dependencySources(project, dependencySourcesParams);
     return Either.forRight(result);
   }

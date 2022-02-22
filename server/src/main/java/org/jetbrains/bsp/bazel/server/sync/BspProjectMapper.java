@@ -17,16 +17,13 @@ import ch.epfl.scala.bsp4j.SourceItemKind;
 import ch.epfl.scala.bsp4j.SourcesItem;
 import ch.epfl.scala.bsp4j.SourcesParams;
 import ch.epfl.scala.bsp4j.SourcesResult;
+import ch.epfl.scala.bsp4j.TextDocumentIdentifier;
 import ch.epfl.scala.bsp4j.WorkspaceBuildTargetsResult;
-import com.google.common.collect.Iterables;
 import io.vavr.collection.HashSet;
 import io.vavr.collection.Set;
 import java.net.URI;
-import java.nio.file.Path;
 import java.util.Collections;
-import org.jetbrains.bsp.bazel.info.BspTargetInfo;
-import org.jetbrains.bsp.bazel.info.BspTargetInfo.FileLocation;
-import org.jetbrains.bsp.bazel.server.sync.languages.LanguageHub;
+import org.jetbrains.bsp.bazel.server.sync.languages.LanguagePluginsService;
 import org.jetbrains.bsp.bazel.server.sync.model.Label;
 import org.jetbrains.bsp.bazel.server.sync.model.Language;
 import org.jetbrains.bsp.bazel.server.sync.model.Module;
@@ -35,12 +32,10 @@ import org.jetbrains.bsp.bazel.server.sync.model.Tag;
 
 public class BspProjectMapper {
 
-  private final BazelPathsResolver bazelPathsResolver;
-  private final LanguageHub languageHub;
+  private final LanguagePluginsService languagePluginsService;
 
-  public BspProjectMapper(BazelPathsResolver bazelPathsResolver, LanguageHub languageHub) {
-    this.bazelPathsResolver = bazelPathsResolver;
-    this.languageHub = languageHub;
+  public BspProjectMapper(LanguagePluginsService languagePluginsService) {
+    this.languagePluginsService = languagePluginsService;
   }
 
   public WorkspaceBuildTargetsResult workspaceTargets(Project project) {
@@ -49,12 +44,12 @@ public class BspProjectMapper {
   }
 
   private BuildTarget toBuildTarget(Module module) {
-    var label = toBsp(module.label());
-    var dependencies = module.directDependencies().map(this::toBsp);
+    var label = toBspId(module.label());
+    var dependencies = module.directDependencies().map(this::toBspId);
     var languages = module.languages().flatMap(Language::getAllNames);
     var capabilities = inferCapabilities(module);
-    var tags = module.tags().map(this::toBsp);
-    var baseDirectory = module.baseDirectory();
+    var tags = module.tags().map(this::toBspTag);
+    var baseDirectory = toBspUri(module.baseDirectory());
 
     var buildTarget =
         new BuildTarget(
@@ -64,39 +59,22 @@ public class BspProjectMapper {
             dependencies.toJavaList(),
             capabilities);
     buildTarget.setDisplayName(label.getUri());
-    buildTarget.setBaseDirectory(toBspUri(baseDirectory));
-
-    languageHub
-        .getPlugin(module.languages())
-        .forEach(
-            plugin ->
-                module.languageData().forEach(data -> plugin.setModuleData(data, buildTarget)));
+    buildTarget.setBaseDirectory(baseDirectory);
+    applyLanguageData(module, buildTarget);
 
     return buildTarget;
   }
 
-  private BuildTargetIdentifier toBsp(Label label) {
-    return new BuildTargetIdentifier(label.getValue());
-  }
-
-  private String toBsp(Tag tag) {
-    switch (tag) {
-      case APPLICATION:
-        return BuildTargetTag.APPLICATION;
-      case TEST:
-        return BuildTargetTag.TEST;
-      case LIBRARY:
-        return BuildTargetTag.LIBRARY;
-      case NO_IDE:
-        return BuildTargetTag.NO_IDE;
-      default:
-        throw new RuntimeException("Unexpected tag: " + tag);
-    }
-  }
-
   private BuildTargetCapabilities inferCapabilities(Module module) {
-    return new BuildTargetCapabilities(
-        true, module.tags().contains(Tag.TEST), module.tags().contains(Tag.APPLICATION));
+    var canCompile = true;
+    var canTest = module.tags().contains(Tag.TEST);
+    var canRun = module.tags().contains(Tag.APPLICATION);
+    return new BuildTargetCapabilities(canCompile, canTest, canRun);
+  }
+
+  private void applyLanguageData(Module module, BuildTarget buildTarget) {
+    var plugin = languagePluginsService.getPlugin(module.languages());
+    module.languageData().forEach(data -> plugin.setModuleData(data, buildTarget));
   }
 
   public SourcesResult sources(Project project, SourcesParams sourcesParams) {
@@ -123,13 +101,13 @@ public class BspProjectMapper {
             .map(source -> new SourceItem(toBspUri(source), SourceItemKind.FILE, false));
     var sourceRoots = sourceSet.sourceRoots().map(this::toBspUri);
 
-    var sourcesItem = new SourcesItem(toBsp(module.label()), sourceItems.toJavaList());
+    var sourcesItem = new SourcesItem(toBspId(module.label()), sourceItems.toJavaList());
     sourcesItem.setRoots(sourceRoots.toJavaList());
     return sourcesItem;
   }
 
   private SourcesItem emptySourcesItem(Label label) {
-    return new SourcesItem(toBsp(label), Collections.emptyList());
+    return new SourcesItem(toBspId(label), Collections.emptyList());
   }
 
   public ResourcesResult resources(Project project, ResourcesParams resourcesParams) {
@@ -146,17 +124,17 @@ public class BspProjectMapper {
 
   private ResourcesItem toResourcesItem(Module module) {
     var resources = module.resources().map(this::toBspUri);
-    return new ResourcesItem(toBsp(module.label()), resources.toJavaList());
+    return new ResourcesItem(toBspId(module.label()), resources.toJavaList());
   }
 
   private ResourcesItem emptyResourcesItem(Label label) {
-    return new ResourcesItem(toBsp(label), Collections.emptyList());
+    return new ResourcesItem(toBspId(label), Collections.emptyList());
   }
 
   public InverseSourcesResult inverseSources(
       Project project, InverseSourcesParams inverseSourcesParams) {
-    var documentUri = URI.create(inverseSourcesParams.getTextDocument().getUri());
-    var targets = project.findTargetBySource(documentUri).map(this::toBsp).toList();
+    var documentUri = toUri(inverseSourcesParams.getTextDocument());
+    var targets = project.findTargetBySource(documentUri).map(this::toBspId).toList();
     return new InverseSourcesResult(targets.toJavaList());
   }
 
@@ -167,42 +145,32 @@ public class BspProjectMapper {
     return new DependencySourcesResult(items.toJavaList());
   }
 
-  private DependencySourcesItem getDependencySourcesItem(Project project, String label) {
-    var target = project.getTargets().get(label);
+  private DependencySourcesItem getDependencySourcesItem(Project project, Label label) {
     var sources =
-        target
-            .map(
-                t -> {
-                  // do not return source jars of imported
-                  // modules, neither source jars that other
-                  // imported modules will report
-                  var deps =
-                      project.getTransitiveDependencies(
-                          t, dep -> !project.getRootTargetLabels().contains(dep.getId()));
-                  return deps.flatMap(
-                      info -> {
-                        if (info.hasJavaTargetInfo()) {
-                          return HashSet.ofAll(
-                                  Iterables.concat(
-                                      info.getJavaTargetInfo().getJarsList(),
-                                      info.getJavaTargetInfo().getGeneratedJarsList()))
-                              .flatMap(BspTargetInfo.JvmOutputs::getSourceJarsList)
-                              .map(this::toBspUri);
-                        } else {
-                          return HashSet.of();
-                        }
-                      });
-                })
-            .getOrElse(HashSet.of());
-    return new DependencySourcesItem(new BuildTargetIdentifier(label), sources.toJavaList());
+        project
+            .findModule(label)
+            .map(module -> module.sourceDependencies().map(this::toBspUri))
+            .getOrElse(HashSet.empty());
+    return new DependencySourcesItem(toBspId(label), sources.toJavaList());
   }
 
-  private String toBspUri(FileLocation file) {
-    return toBspUri(bazelPathsResolver.resolve(file));
+  private BuildTargetIdentifier toBspId(Label label) {
+    return new BuildTargetIdentifier(label.getValue());
   }
 
-  private String toBspUri(Path path) {
-    return path.toUri().toString();
+  private String toBspTag(Tag tag) {
+    switch (tag) {
+      case APPLICATION:
+        return BuildTargetTag.APPLICATION;
+      case TEST:
+        return BuildTargetTag.TEST;
+      case LIBRARY:
+        return BuildTargetTag.LIBRARY;
+      case NO_IDE:
+        return BuildTargetTag.NO_IDE;
+      default:
+        throw new RuntimeException("Unexpected tag: " + tag);
+    }
   }
 
   private String toBspUri(URI uri) {
@@ -211,5 +179,9 @@ public class BspProjectMapper {
 
   private Set<Label> toLabels(java.util.List<BuildTargetIdentifier> targets) {
     return HashSet.ofAll(targets).map(BuildTargetIdentifier::getUri).map(Label::from);
+  }
+
+  private URI toUri(TextDocumentIdentifier textDocument) {
+    return URI.create(textDocument.getUri());
   }
 }

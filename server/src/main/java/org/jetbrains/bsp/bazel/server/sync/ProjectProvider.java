@@ -2,11 +2,11 @@ package org.jetbrains.bsp.bazel.server.sync;
 
 import org.jetbrains.bsp.bazel.server.sync.model.Project;
 
-public class ProjectStore {
+public class ProjectProvider {
   private Project project;
   private final ProjectResolver projectResolver;
 
-  public ProjectStore(ProjectResolver projectResolver) {
+  public ProjectProvider(ProjectResolver projectResolver) {
     this.projectResolver = projectResolver;
   }
 

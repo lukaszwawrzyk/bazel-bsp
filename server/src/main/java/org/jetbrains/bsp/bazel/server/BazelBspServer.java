@@ -37,12 +37,14 @@ import org.jetbrains.bsp.bazel.server.bsp.services.ScalaBuildServerService;
 import org.jetbrains.bsp.bazel.server.bsp.utils.InternalAspectsResolver;
 import org.jetbrains.bsp.bazel.server.loggers.BuildClientLogger;
 import org.jetbrains.bsp.bazel.server.sync.BazelPathsResolver;
+import org.jetbrains.bsp.bazel.server.sync.BazelProjectMapper;
 import org.jetbrains.bsp.bazel.server.sync.BspProjectMapper;
+import org.jetbrains.bsp.bazel.server.sync.ProjectProvider;
 import org.jetbrains.bsp.bazel.server.sync.ProjectResolver;
-import org.jetbrains.bsp.bazel.server.sync.ProjectStore;
 import org.jetbrains.bsp.bazel.server.sync.ProjectSyncService;
-import org.jetbrains.bsp.bazel.server.sync.ProjectViewStore;
-import org.jetbrains.bsp.bazel.server.sync.languages.LanguageHub;
+import org.jetbrains.bsp.bazel.server.sync.ProjectViewProvider;
+import org.jetbrains.bsp.bazel.server.sync.TargetKindResolver;
+import org.jetbrains.bsp.bazel.server.sync.languages.LanguagePluginsService;
 import org.jetbrains.bsp.bazel.server.sync.languages.cpp.CppLanguagePlugin;
 import org.jetbrains.bsp.bazel.server.sync.languages.java.JavaLanguagePlugin;
 import org.jetbrains.bsp.bazel.server.sync.languages.scala.ScalaLanguagePlugin;
@@ -81,21 +83,26 @@ public class BazelBspServer {
         new BazelBspTargetManager(bazelRunner, bazelBspAspectsManager, bazelCppTargetManager);
     BazelPathsResolver bazelPathsResolver = new BazelPathsResolver(bazelData);
     JavaLanguagePlugin javaLanguagePlugin = new JavaLanguagePlugin(bazelPathsResolver);
-    ScalaLanguagePlugin scalaLanguagePlugin = new ScalaLanguagePlugin(javaLanguagePlugin, bazelPathsResolver);
+    ScalaLanguagePlugin scalaLanguagePlugin =
+        new ScalaLanguagePlugin(javaLanguagePlugin, bazelPathsResolver);
     CppLanguagePlugin cppLanguagePlugin = new CppLanguagePlugin();
-    LanguageHub languageHub = new LanguageHub(scalaLanguagePlugin, javaLanguagePlugin, cppLanguagePlugin);
+    LanguagePluginsService languagePluginsService =
+        new LanguagePluginsService(scalaLanguagePlugin, javaLanguagePlugin, cppLanguagePlugin);
+    TargetKindResolver targetKindResolver = new TargetKindResolver();
+    BazelProjectMapper bazelProjectMapper =
+        new BazelProjectMapper(languagePluginsService, bazelPathsResolver, targetKindResolver);
     ProjectResolver projectResolver =
         new ProjectResolver(
             bazelBspAspectsManager,
-            new ProjectViewStore(bazelBspServerConfig.getProjectView()),
-                languageHub, bazelPathsResolver);
+            new ProjectViewProvider(bazelBspServerConfig.getProjectView()),
+            bazelProjectMapper);
     BazelBspQueryManager bazelBspQueryManager =
         new BazelBspQueryManager(
             bazelBspServerConfig.getProjectView(), bazelData, bazelRunner, bazelBspTargetManager);
-    ProjectStore projectStore = new ProjectStore(projectResolver);
-    BspProjectMapper bspProjectMapper = new BspProjectMapper(bazelPathsResolver, languageHub);
+    ProjectProvider projectProvider = new ProjectProvider(projectResolver);
+    BspProjectMapper bspProjectMapper = new BspProjectMapper(languagePluginsService);
     ProjectSyncService projectSyncService =
-        new ProjectSyncService(bspProjectMapper, projectStore);
+        new ProjectSyncService(bspProjectMapper, projectProvider);
 
     this.serverBuildManager =
         new BazelBspServerBuildManager(

@@ -16,7 +16,7 @@ public class ScalaModule {
     return sdk;
   }
 
-  public Option<JavaModule>  javaModule() {
+  public Option<JavaModule> javaModule() {
     return javaModule;
   }
 }
