@@ -6,12 +6,15 @@ import static org.jetbrains.bsp.bazel.server.sync.BspMappings.toBspUri;
 import static org.jetbrains.bsp.bazel.server.sync.BspMappings.toLabels;
 import static org.jetbrains.bsp.bazel.server.sync.BspMappings.toUri;
 
+import ch.epfl.scala.bsp4j.BuildServerCapabilities;
 import ch.epfl.scala.bsp4j.BuildTarget;
 import ch.epfl.scala.bsp4j.BuildTargetCapabilities;
 import ch.epfl.scala.bsp4j.BuildTargetIdentifier;
+import ch.epfl.scala.bsp4j.CompileProvider;
 import ch.epfl.scala.bsp4j.DependencySourcesItem;
 import ch.epfl.scala.bsp4j.DependencySourcesParams;
 import ch.epfl.scala.bsp4j.DependencySourcesResult;
+import ch.epfl.scala.bsp4j.InitializeBuildResult;
 import ch.epfl.scala.bsp4j.InverseSourcesParams;
 import ch.epfl.scala.bsp4j.InverseSourcesResult;
 import ch.epfl.scala.bsp4j.JavacOptionsItem;
@@ -25,6 +28,7 @@ import ch.epfl.scala.bsp4j.JvmTestEnvironmentResult;
 import ch.epfl.scala.bsp4j.ResourcesItem;
 import ch.epfl.scala.bsp4j.ResourcesParams;
 import ch.epfl.scala.bsp4j.ResourcesResult;
+import ch.epfl.scala.bsp4j.RunProvider;
 import ch.epfl.scala.bsp4j.ScalaMainClassesParams;
 import ch.epfl.scala.bsp4j.ScalaMainClassesResult;
 import ch.epfl.scala.bsp4j.ScalaTestClassesParams;
@@ -36,11 +40,14 @@ import ch.epfl.scala.bsp4j.SourceItemKind;
 import ch.epfl.scala.bsp4j.SourcesItem;
 import ch.epfl.scala.bsp4j.SourcesParams;
 import ch.epfl.scala.bsp4j.SourcesResult;
+import ch.epfl.scala.bsp4j.TestProvider;
 import ch.epfl.scala.bsp4j.WorkspaceBuildTargetsResult;
 import io.vavr.collection.HashSet;
+import io.vavr.collection.List;
 import io.vavr.collection.Set;
 import io.vavr.control.Option;
 import java.util.Collections;
+import org.jetbrains.bsp.bazel.commons.Constants;
 import org.jetbrains.bsp.bazel.server.sync.languages.LanguagePluginsService;
 import org.jetbrains.bsp.bazel.server.sync.model.Label;
 import org.jetbrains.bsp.bazel.server.sync.model.Language;
@@ -54,6 +61,22 @@ public class BspProjectMapper {
 
   public BspProjectMapper(LanguagePluginsService languagePluginsService) {
     this.languagePluginsService = languagePluginsService;
+  }
+
+  public InitializeBuildResult initializeServer(List<Language> supportedLanguages) {
+    var languageNames = supportedLanguages.map(Language::getName).toJavaList();
+
+    var capabilities = new BuildServerCapabilities();
+    capabilities.setCompileProvider(new CompileProvider(languageNames));
+    capabilities.setRunProvider(new RunProvider(languageNames));
+    capabilities.setTestProvider(new TestProvider(languageNames));
+    capabilities.setDependencySourcesProvider(true);
+    capabilities.setInverseSourcesProvider(true);
+    capabilities.setResourcesProvider(true);
+    capabilities.setJvmRunEnvironmentProvider(true);
+    capabilities.setJvmTestEnvironmentProvider(true);
+    return new InitializeBuildResult(
+        Constants.NAME, Constants.VERSION, Constants.BSP_VERSION, capabilities);
   }
 
   public WorkspaceBuildTargetsResult workspaceTargets(Project project) {

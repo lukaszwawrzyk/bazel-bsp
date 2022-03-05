@@ -1,5 +1,7 @@
 package org.jetbrains.bsp.bazel.server.sync;
 
+import static org.jetbrains.bsp.bazel.server.sync.BspMappings.toBspId;
+
 import org.jetbrains.bsp.bazel.server.bep.BepServer;
 import org.jetbrains.bsp.bazel.server.sync.model.Project;
 
@@ -18,7 +20,7 @@ public class BepServerProjectListener implements ProjectChangeListener {
         .modules()
         .forEach(
             module -> {
-              var id = BspMappings.toBspId(module);
+              var id = toBspId(module);
               var sources = module.sourceSet().sources().toJavaList();
               sourcesMap.put(id, sources);
             });

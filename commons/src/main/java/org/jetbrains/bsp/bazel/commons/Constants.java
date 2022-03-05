@@ -18,7 +18,7 @@ public class Constants {
   public static final String JAVAC = "Javac";
   public static final String KOTLINC = "KotlinCompile";
 
-  public static final List<String> SUPPORTED_LANGUAGES = ImmutableList.of(SCALA, JAVA, KOTLIN);
+  public static final List<String> SUPPORTED_LANGUAGES = ImmutableList.of(SCALA, JAVA, KOTLIN, CPP);
   public static final List<String> SUPPORTED_COMPILERS = ImmutableList.of(SCALAC, JAVAC, KOTLINC);
 
   public static final String BAZEL_BUILD_COMMAND = "build";

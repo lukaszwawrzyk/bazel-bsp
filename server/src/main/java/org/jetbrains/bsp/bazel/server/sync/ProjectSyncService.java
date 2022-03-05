@@ -4,6 +4,7 @@ import ch.epfl.scala.bsp4j.DependencyModulesParams;
 import ch.epfl.scala.bsp4j.DependencyModulesResult;
 import ch.epfl.scala.bsp4j.DependencySourcesParams;
 import ch.epfl.scala.bsp4j.DependencySourcesResult;
+import ch.epfl.scala.bsp4j.InitializeBuildResult;
 import ch.epfl.scala.bsp4j.InverseSourcesParams;
 import ch.epfl.scala.bsp4j.InverseSourcesResult;
 import ch.epfl.scala.bsp4j.JavacOptionsParams;
@@ -26,6 +27,7 @@ import ch.epfl.scala.bsp4j.WorkspaceBuildTargetsResult;
 import java.util.Collections;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
+import org.jetbrains.bsp.bazel.server.sync.model.Language;
 
 /** A facade for all project sync related methods */
 public class ProjectSyncService {
@@ -35,6 +37,11 @@ public class ProjectSyncService {
   public ProjectSyncService(BspProjectMapper bspProjectMapper, ProjectProvider projectProvider) {
     this.bspMapper = bspProjectMapper;
     this.projectProvider = projectProvider;
+  }
+
+  public Either<ResponseError, InitializeBuildResult> initialize() {
+    var result = bspMapper.initializeServer(Language.all());
+    return Either.forRight(result);
   }
 
   // We might consider doing the actual project reload in this endpoint

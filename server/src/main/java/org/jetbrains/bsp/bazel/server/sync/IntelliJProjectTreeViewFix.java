@@ -35,13 +35,13 @@ public class IntelliJProjectTreeViewFix {
       return List.empty();
     }
 
-    var rootModule = emptyModule("bsp-workspace-root", workspaceRoot);
+    var rootModule = syntheticModule("bsp-workspace-root", workspaceRoot);
     return List.of(rootModule);
   }
 
   private List<Module> createMultipleModules(URI workspaceRoot, List<Module> modules) {
-    var expectedRootDirs = resolveExpectedRootDirs(modules);
     var existingRootDirectories = resolveExistingRootDirectories(modules);
+    var expectedRootDirs = resolveExpectedRootDirs(modules);
     return expectedRootDirs.flatMap(
         root -> {
           if (existingRootDirectories.contains(root)) {
@@ -50,7 +50,7 @@ public class IntelliJProjectTreeViewFix {
 
           var relative = Paths.get(workspaceRoot).relativize(Paths.get(root)).toString();
           var moduleName = relative + "-modules-root";
-          return Option.some(emptyModule(moduleName, root));
+          return Option.some(syntheticModule(moduleName, root));
         });
   }
 
@@ -73,7 +73,7 @@ public class IntelliJProjectTreeViewFix {
     return List.ofAll(buffer.stream().map(URI::create));
   }
 
-  private Module emptyModule(String moduleName, URI baseDirectory) {
+  private Module syntheticModule(String moduleName, URI baseDirectory) {
     HashSet<URI> resources = HashSet.of(baseDirectory);
     return new Module(
         Label.from(moduleName),
