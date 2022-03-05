@@ -25,7 +25,6 @@ public class BazelDataResolver {
     String workspaceRoot = readOnlyBazelLine(WORKPLACE_ROOT_PARAMETER);
     String binRoot = readOnlyBazelLine(BAZEL_BIN_ROOT_PARAMETER);
     String version = readOnlyBazelLine(BAZEL_VERSION_PARAMETER);
-    Path workspacePath = Paths.get(execRoot);
     Path bspProjectRoot = Paths.get("").toAbsolutePath().normalize();
     return new BazelData(execRoot, workspaceRoot, binRoot, version, bspProjectRoot);
   }

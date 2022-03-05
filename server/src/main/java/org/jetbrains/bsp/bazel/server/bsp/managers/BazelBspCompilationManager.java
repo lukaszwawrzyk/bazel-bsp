@@ -2,6 +2,7 @@ package org.jetbrains.bsp.bazel.server.bsp.managers;
 
 import ch.epfl.scala.bsp4j.BuildTargetIdentifier;
 import com.google.devtools.build.lib.query2.proto.proto2api.Build;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -11,8 +12,6 @@ import org.jetbrains.bsp.bazel.bazelrunner.data.BazelData;
 import org.jetbrains.bsp.bazel.bazelrunner.params.BazelRunnerFlag;
 import org.jetbrains.bsp.bazel.commons.Constants;
 import org.jetbrains.bsp.bazel.server.bep.BepServer;
-import org.jetbrains.bsp.bazel.server.bsp.resolvers.QueryResolver;
-import org.jetbrains.bsp.bazel.server.bsp.utils.BuildManagerParsingUtils;
 
 public class BazelBspCompilationManager {
 
@@ -40,7 +39,7 @@ public class BazelBspCompilationManager {
             .withTargets(bazelTargets)
             .executeBazelBesCommand();
 
-    Build.QueryResult queryResult = QueryResolver.getQueryResultForProcess(bazelProcess);
+    Build.QueryResult queryResult = getQueryResultForProcess(bazelProcess);
 
     cacheProtoLocations(diagnosticsProtosLocations, queryResult);
 
@@ -84,8 +83,7 @@ public class BazelBspCompilationManager {
   private void cacheProtos(
       Map<String, String> diagnosticsProtosLocations, Build.Rule rule, String output) {
     diagnosticsProtosLocations.put(
-        rule.getName(),
-        BuildManagerParsingUtils.convertOutputToPath(output, bazelData.getBinRoot()));
+        rule.getName(), convertOutputToPath(output, bazelData.getBinRoot()));
   }
 
   private boolean isWorkspacePackage(Build.Rule rule) {
@@ -94,5 +92,18 @@ public class BazelBspCompilationManager {
 
   public void setBepServer(BepServer bepServer) {
     this.bepServer = bepServer;
+  }
+
+  private Build.QueryResult getQueryResultForProcess(BazelProcess process) {
+    try {
+      return Build.QueryResult.parseFrom(process.getInputStream());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private String convertOutputToPath(String output, String prefix) {
+    String pathToFile = output.replaceAll("(//|:)", "/");
+    return prefix + pathToFile;
   }
 }

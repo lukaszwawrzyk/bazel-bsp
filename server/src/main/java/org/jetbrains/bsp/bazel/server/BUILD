@@ -14,7 +14,6 @@ java_library(
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/config",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/impl",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/managers",
-        "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/resolvers",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/services",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/utils",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/sync",
