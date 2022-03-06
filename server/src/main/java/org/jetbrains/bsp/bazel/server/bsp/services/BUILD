@@ -9,7 +9,6 @@ java_library(
         "//commons",
         "//projectview:model",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bep",
-        "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/managers",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/utils",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/sync",

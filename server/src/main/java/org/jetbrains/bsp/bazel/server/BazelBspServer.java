@@ -1,11 +1,6 @@
 package org.jetbrains.bsp.bazel.server;
 
 import ch.epfl.scala.bsp4j.BuildClient;
-import ch.epfl.scala.bsp4j.BuildServer;
-import ch.epfl.scala.bsp4j.CppBuildServer;
-import ch.epfl.scala.bsp4j.JavaBuildServer;
-import ch.epfl.scala.bsp4j.JvmBuildServer;
-import ch.epfl.scala.bsp4j.ScalaBuildServer;
 import io.grpc.ServerBuilder;
 import java.nio.file.Paths;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
@@ -18,11 +13,6 @@ import org.jetbrains.bsp.bazel.server.bsp.BspImplementationHub;
 import org.jetbrains.bsp.bazel.server.bsp.BspIntegrationData;
 import org.jetbrains.bsp.bazel.server.bsp.BspRequestsRunner;
 import org.jetbrains.bsp.bazel.server.bsp.config.BazelBspServerConfig;
-import org.jetbrains.bsp.bazel.server.bsp.impl.BuildServerImpl;
-import org.jetbrains.bsp.bazel.server.bsp.impl.CppBuildServerImpl;
-import org.jetbrains.bsp.bazel.server.bsp.impl.JavaBuildServerImpl;
-import org.jetbrains.bsp.bazel.server.bsp.impl.JvmBuildServerImpl;
-import org.jetbrains.bsp.bazel.server.bsp.impl.ScalaBuildServerImpl;
 import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspAspectsManager;
 import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspCompilationManager;
 import org.jetbrains.bsp.bazel.server.bsp.services.CppBuildServerService;
@@ -90,19 +80,13 @@ public class BazelBspServer {
         new ExecuteService(bazelBspCompilationManager, projectProvider, bazelRunner);
     var cppBuildServerService = new CppBuildServerService(bazelBspAspectsManager);
 
-    JvmBuildServer jvmBuildServer = new JvmBuildServerImpl(projectSyncService, bspRequestsRunner);
-    ScalaBuildServer scalaBuildServer =
-        new ScalaBuildServerImpl(bspRequestsRunner, projectSyncService);
-    JavaBuildServer javaBuildServer =
-        new JavaBuildServerImpl(projectSyncService, bspRequestsRunner);
-    CppBuildServer cppBuildServer =
-        new CppBuildServerImpl(cppBuildServerService, bspRequestsRunner);
-    BuildServer buildServer =
-        new BuildServerImpl(bspRequestsRunner, projectSyncService, serverLifetime, executeService);
-
     this.bspImplementationHub =
         new BspImplementationHub(
-            buildServer, jvmBuildServer, scalaBuildServer, javaBuildServer, cppBuildServer);
+            serverLifetime,
+            bspRequestsRunner,
+            projectSyncService,
+            executeService,
+            cppBuildServerService);
 
     integrateBsp(bspIntegrationData);
   }

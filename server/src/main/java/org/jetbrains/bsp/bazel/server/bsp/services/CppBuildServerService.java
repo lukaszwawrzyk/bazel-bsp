@@ -8,8 +8,6 @@ import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.eclipse.lsp4j.jsonrpc.messages.Either;
-import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
 import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspAspectsManager;
 
 public class CppBuildServerService {
@@ -24,8 +22,7 @@ public class CppBuildServerService {
     this.bazelBspAspectsManager = bazelBspAspectsManager;
   }
 
-  public CppOptionsResult buildTargetCppOptions(
-      CppOptionsParams cppOptionsParams) {
+  public CppOptionsResult buildTargetCppOptions(CppOptionsParams cppOptionsParams) {
     List<CppOptionsItem> items =
         cppOptionsParams.getTargets().stream().map(this::getOptions).collect(Collectors.toList());
     return new CppOptionsResult(items);

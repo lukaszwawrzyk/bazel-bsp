@@ -41,145 +41,165 @@ import ch.epfl.scala.bsp4j.TestParams;
 import ch.epfl.scala.bsp4j.TestResult;
 import ch.epfl.scala.bsp4j.WorkspaceBuildTargetsResult;
 import java.util.concurrent.CompletableFuture;
+import org.jetbrains.bsp.bazel.server.bsp.services.CppBuildServerService;
+import org.jetbrains.bsp.bazel.server.sync.ExecuteService;
+import org.jetbrains.bsp.bazel.server.sync.ProjectSyncService;
 
 public class BspImplementationHub
     implements BuildServer, JvmBuildServer, ScalaBuildServer, JavaBuildServer, CppBuildServer {
 
-  private final BuildServer buildServer;
-  private final JvmBuildServer jvmBuildServer;
-  private final ScalaBuildServer scalaBuildServer;
-  private final JavaBuildServer javaBuildServer;
-  private final CppBuildServer cppBuildServer;
+  private final BazelBspServerLifetime serverLifetime;
+  private final BspRequestsRunner runner;
+  private final ProjectSyncService projectSyncService;
+  private final ExecuteService executeService;
+  private final CppBuildServerService cppBuildServerService;
 
   public BspImplementationHub(
-      BuildServer buildServer,
-      JvmBuildServer jvmBuildServer,
-      ScalaBuildServer scalaBuildServer,
-      JavaBuildServer javaBuildServer,
-      CppBuildServer cppBuildServer) {
-    this.buildServer = buildServer;
-    this.jvmBuildServer = jvmBuildServer;
-    this.scalaBuildServer = scalaBuildServer;
-    this.javaBuildServer = javaBuildServer;
-    this.cppBuildServer = cppBuildServer;
+      BazelBspServerLifetime serverLifetime,
+      BspRequestsRunner runner,
+      ProjectSyncService projectSyncService,
+      ExecuteService executeService,
+      CppBuildServerService cppBuildServerService) {
+    this.serverLifetime = serverLifetime;
+    this.runner = runner;
+    this.projectSyncService = projectSyncService;
+    this.executeService = executeService;
+    this.cppBuildServerService = cppBuildServerService;
   }
 
   @Override
-  public CompletableFuture<InitializeBuildResult> buildInitialize(InitializeBuildParams params) {
-    return buildServer.buildInitialize(params);
+  public CompletableFuture<InitializeBuildResult> buildInitialize(
+      InitializeBuildParams initializeBuildParams) {
+    return runner.runCommand(
+        "buildInitialize", projectSyncService::initialize, runner::serverIsNotFinished);
   }
 
   @Override
   public void onBuildInitialized() {
-    buildServer.onBuildInitialized();
+    runner.runCommand("onBuildInitialized", serverLifetime::setInitializedComplete);
   }
 
   @Override
   public CompletableFuture<Object> buildShutdown() {
-    return buildServer.buildShutdown();
+    return runner.runCommand(
+        "buildShutdown",
+        () -> {
+          serverLifetime.setFinishedComplete();
+          return new Object();
+        },
+        runner::serverIsInitialized);
   }
 
   @Override
   public void onBuildExit() {
-    buildServer.onBuildExit();
+    runner.runCommand("onBuildExit", serverLifetime::forceFinish);
   }
 
   @Override
   public CompletableFuture<WorkspaceBuildTargetsResult> workspaceBuildTargets() {
-    return buildServer.workspaceBuildTargets();
+    return runner.runCommand("workspaceBuildTargets", projectSyncService::workspaceBuildTargets);
   }
 
   @Override
   public CompletableFuture<Object> workspaceReload() {
-    return buildServer.workspaceReload();
+    return runner.runCommand("workspaceReload", projectSyncService::workspaceReload);
   }
 
   @Override
   public CompletableFuture<SourcesResult> buildTargetSources(SourcesParams params) {
-    return buildServer.buildTargetSources(params);
+    return runner.runCommand("buildTargetSources", projectSyncService::buildTargetSources, params);
   }
 
   @Override
   public CompletableFuture<InverseSourcesResult> buildTargetInverseSources(
       InverseSourcesParams params) {
-    return buildServer.buildTargetInverseSources(params);
+    return runner.runCommand(
+        "buildTargetInverseSources", projectSyncService::buildTargetInverseSources, params);
   }
 
   @Override
   public CompletableFuture<DependencySourcesResult> buildTargetDependencySources(
       DependencySourcesParams params) {
-    return buildServer.buildTargetDependencySources(params);
+    return runner.runCommand(
+        "buildTargetDependencySources", projectSyncService::buildTargetDependencySources, params);
   }
 
   @Override
   public CompletableFuture<ResourcesResult> buildTargetResources(ResourcesParams params) {
-    return buildServer.buildTargetResources(params);
+    return runner.runCommand(
+        "buildTargetResources", projectSyncService::buildTargetResources, params);
   }
 
   @Override
   public CompletableFuture<CompileResult> buildTargetCompile(CompileParams params) {
-    return buildServer.buildTargetCompile(params);
+    return runner.runCommand("buildTargetCompile", executeService::compile, params);
   }
 
   @Override
   public CompletableFuture<TestResult> buildTargetTest(TestParams params) {
-    return buildServer.buildTargetTest(params);
+    return runner.runCommand("buildTargetTest", executeService::test, params);
   }
 
   @Override
   public CompletableFuture<RunResult> buildTargetRun(RunParams params) {
-    return buildServer.buildTargetRun(params);
+    return runner.runCommand("buildTargetRun", executeService::run, params);
   }
 
   @Override
   public CompletableFuture<CleanCacheResult> buildTargetCleanCache(CleanCacheParams params) {
-    return buildServer.buildTargetCleanCache(params);
+    return runner.runCommand("buildTargetCleanCache", executeService::clean, params);
   }
 
   @Override
   public CompletableFuture<DependencyModulesResult> buildTargetDependencyModules(
       DependencyModulesParams params) {
-    return buildServer.buildTargetDependencyModules(params);
+    return runner.runCommand(
+        "buildTargetDependencyModules", projectSyncService::buildTargetDependencyModules, params);
   }
 
   @Override
   public CompletableFuture<ScalacOptionsResult> buildTargetScalacOptions(
       ScalacOptionsParams params) {
-    return scalaBuildServer.buildTargetScalacOptions(params);
+    return runner.runCommand(
+        "buildTargetScalacOptions", projectSyncService::buildTargetScalacOptions, params);
   }
 
   @Override
   public CompletableFuture<ScalaTestClassesResult> buildTargetScalaTestClasses(
       ScalaTestClassesParams params) {
-    return scalaBuildServer.buildTargetScalaTestClasses(params);
+    return runner.runCommand(
+        "buildTargetScalaTestClasses", projectSyncService::buildTargetScalaTestClasses, params);
   }
 
   @Override
   public CompletableFuture<ScalaMainClassesResult> buildTargetScalaMainClasses(
       ScalaMainClassesParams params) {
-    return scalaBuildServer.buildTargetScalaMainClasses(params);
+    return runner.runCommand(
+        "buildTargetScalaMainClasses", projectSyncService::buildTargetScalaMainClasses, params);
   }
 
   @Override
-  public CompletableFuture<JavacOptionsResult> buildTargetJavacOptions(JavacOptionsParams params) {
-    return javaBuildServer.buildTargetJavacOptions(params);
+  public CompletableFuture<JavacOptionsResult> buildTargetJavacOptions(
+      JavacOptionsParams javacOptionsParams) {
+    return runner.runCommand(
+        "buildTargetJavacOptions", projectSyncService::buildTargetJavacOptions, javacOptionsParams);
   }
 
   @Override
-  public CompletableFuture<CppOptionsResult> buildTargetCppOptions(
-      CppOptionsParams cppOptionsParams) {
-    return cppBuildServer.buildTargetCppOptions(cppOptionsParams);
+  public CompletableFuture<CppOptionsResult> buildTargetCppOptions(CppOptionsParams params) {
+    return runner.runCommand(
+        "buildTargetCppOptions", cppBuildServerService::buildTargetCppOptions, params);
   }
 
   @Override
   public CompletableFuture<JvmRunEnvironmentResult> jvmRunEnvironment(
-      JvmRunEnvironmentParams jvmRunEnvironmentParams) {
-    return jvmBuildServer.jvmRunEnvironment(jvmRunEnvironmentParams);
+      JvmRunEnvironmentParams params) {
+    return runner.runCommand("jvmRunEnvironment", projectSyncService::jvmRunEnvironment, params);
   }
 
   @Override
   public CompletableFuture<JvmTestEnvironmentResult> jvmTestEnvironment(
-      JvmTestEnvironmentParams jvmTestEnvironmentParams) {
-    return jvmBuildServer.jvmTestEnvironment(jvmTestEnvironmentParams);
+      JvmTestEnvironmentParams params) {
+    return runner.runCommand("jvmTestEnvironment", projectSyncService::jvmTestEnvironment, params);
   }
 }
