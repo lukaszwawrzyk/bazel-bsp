@@ -25,8 +25,6 @@ import ch.epfl.scala.bsp4j.SourcesParams;
 import ch.epfl.scala.bsp4j.SourcesResult;
 import ch.epfl.scala.bsp4j.WorkspaceBuildTargetsResult;
 import java.util.Collections;
-import org.eclipse.lsp4j.jsonrpc.messages.Either;
-import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
 import org.jetbrains.bsp.bazel.server.sync.model.Language;
 
 /** A facade for all project sync related methods */
@@ -39,99 +37,78 @@ public class ProjectSyncService {
     this.projectProvider = projectProvider;
   }
 
-  public Either<ResponseError, InitializeBuildResult> initialize() {
-    var result = bspMapper.initializeServer(Language.all());
-    return Either.forRight(result);
+  public InitializeBuildResult initialize() {
+    return bspMapper.initializeServer(Language.all());
   }
 
   // We might consider doing the actual project reload in this endpoint
   // i.e. just run projectProvider.refreshAndGet() and in workspaceBuildTargets
   // just run projectProvider.get() although current approach seems to work
   // correctly, so I am not changing anything.
-  public Either<ResponseError, Object> workspaceReload() {
-    return Either.forRight(new Object());
+  public Object workspaceReload() {
+    return new Object();
   }
 
-  public Either<ResponseError, WorkspaceBuildTargetsResult> workspaceBuildTargets() {
+  public WorkspaceBuildTargetsResult workspaceBuildTargets() {
     var project = projectProvider.refreshAndGet();
-    var result = bspMapper.workspaceTargets(project);
-    return Either.forRight(result);
+    return bspMapper.workspaceTargets(project);
   }
 
-  public Either<ResponseError, SourcesResult> buildTargetSources(SourcesParams sourcesParams) {
+  public SourcesResult buildTargetSources(SourcesParams sourcesParams) {
     var project = projectProvider.get();
-    var result = bspMapper.sources(project, sourcesParams);
-    return Either.forRight(result);
+    return bspMapper.sources(project, sourcesParams);
   }
 
-  public Either<ResponseError, ResourcesResult> buildTargetResources(
-      ResourcesParams resourcesParams) {
+  public ResourcesResult buildTargetResources(ResourcesParams resourcesParams) {
     var project = projectProvider.get();
-    var result = bspMapper.resources(project, resourcesParams);
-    return Either.forRight(result);
+    return bspMapper.resources(project, resourcesParams);
   }
 
-  public Either<ResponseError, InverseSourcesResult> buildTargetInverseSources(
-      InverseSourcesParams inverseSourcesParams) {
+  public InverseSourcesResult buildTargetInverseSources(InverseSourcesParams inverseSourcesParams) {
     var project = projectProvider.get();
-    var result = bspMapper.inverseSources(project, inverseSourcesParams);
-    return Either.forRight(result);
+    return bspMapper.inverseSources(project, inverseSourcesParams);
   }
 
-  public Either<ResponseError, DependencySourcesResult> buildTargetDependencySources(
+  public DependencySourcesResult buildTargetDependencySources(
       DependencySourcesParams dependencySourcesParams) {
     var project = projectProvider.get();
-    var result = bspMapper.dependencySources(project, dependencySourcesParams);
-    return Either.forRight(result);
+    return bspMapper.dependencySources(project, dependencySourcesParams);
   }
 
-  public Either<ResponseError, JvmRunEnvironmentResult> jvmRunEnvironment(
-      JvmRunEnvironmentParams params) {
+  public JvmRunEnvironmentResult jvmRunEnvironment(JvmRunEnvironmentParams params) {
     var project = projectProvider.get();
-    var result = bspMapper.jvmRunEnvironment(project, params);
-    return Either.forRight(result);
+    return bspMapper.jvmRunEnvironment(project, params);
   }
 
-  public Either<ResponseError, JvmTestEnvironmentResult> jvmTestEnvironment(
-      JvmTestEnvironmentParams params) {
+  public JvmTestEnvironmentResult jvmTestEnvironment(JvmTestEnvironmentParams params) {
     var project = projectProvider.get();
-    var result = bspMapper.jvmTestEnvironment(project, params);
-    return Either.forRight(result);
+    return bspMapper.jvmTestEnvironment(project, params);
   }
 
-  public Either<ResponseError, JavacOptionsResult> buildTargetJavacOptions(
-      JavacOptionsParams params) {
+  public JavacOptionsResult buildTargetJavacOptions(JavacOptionsParams params) {
     var project = projectProvider.get();
-    var result = bspMapper.buildTargetJavacOptions(project, params);
-    return Either.forRight(result);
+    return bspMapper.buildTargetJavacOptions(project, params);
   }
 
-  public Either<ResponseError, ScalacOptionsResult> buildTargetScalacOptions(
-      ScalacOptionsParams params) {
+  public ScalacOptionsResult buildTargetScalacOptions(ScalacOptionsParams params) {
     var project = projectProvider.get();
-    var result = bspMapper.buildTargetScalacOptions(project, params);
-    return Either.forRight(result);
+    return bspMapper.buildTargetScalacOptions(project, params);
   }
 
-  public Either<ResponseError, ScalaTestClassesResult> buildTargetScalaTestClasses(
-      ScalaTestClassesParams params) {
+  public ScalaTestClassesResult buildTargetScalaTestClasses(ScalaTestClassesParams params) {
     var project = projectProvider.get();
-    var result = bspMapper.buildTargetScalaTestClasses(project, params);
-    return Either.forRight(result);
+    return bspMapper.buildTargetScalaTestClasses(project, params);
   }
 
-  public Either<ResponseError, ScalaMainClassesResult> buildTargetScalaMainClasses(
-      ScalaMainClassesParams params) {
+  public ScalaMainClassesResult buildTargetScalaMainClasses(ScalaMainClassesParams params) {
     var project = projectProvider.get();
-    var result = bspMapper.buildTargetScalaMainClasses(project, params);
-    return Either.forRight(result);
+    return bspMapper.buildTargetScalaMainClasses(project, params);
   }
 
   // TODO implement this endpoint to return libraries with maven coordinates that target depends on
   // this should be helpful for 3rd party shared indexes in IntelliJ, however the endpoint is not
   // yet used in the client
-  public Either<ResponseError, DependencyModulesResult> buildTargetDependencyModules(
-      DependencyModulesParams params) {
-    return Either.forRight(new DependencyModulesResult(Collections.emptyList()));
+  public DependencyModulesResult buildTargetDependencyModules(DependencyModulesParams params) {
+    return new DependencyModulesResult(Collections.emptyList());
   }
 }

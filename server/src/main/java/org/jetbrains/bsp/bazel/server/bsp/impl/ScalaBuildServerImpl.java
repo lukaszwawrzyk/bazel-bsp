@@ -8,41 +8,37 @@ import ch.epfl.scala.bsp4j.ScalaTestClassesResult;
 import ch.epfl.scala.bsp4j.ScalacOptionsParams;
 import ch.epfl.scala.bsp4j.ScalacOptionsResult;
 import java.util.concurrent.CompletableFuture;
-import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerRequestHelpers;
+import org.jetbrains.bsp.bazel.server.bsp.BspRequestsRunner;
 import org.jetbrains.bsp.bazel.server.sync.ProjectSyncService;
 
 public class ScalaBuildServerImpl implements ScalaBuildServer {
 
-  private final BazelBspServerRequestHelpers serverRequestHelpers;
+  private final BspRequestsRunner runner;
   private final ProjectSyncService projectSyncService;
 
-  public ScalaBuildServerImpl(
-      BazelBspServerRequestHelpers serverRequestHelpers, ProjectSyncService projectSyncService) {
-    this.serverRequestHelpers = serverRequestHelpers;
+  public ScalaBuildServerImpl(BspRequestsRunner runner, ProjectSyncService projectSyncService) {
+    this.runner = runner;
     this.projectSyncService = projectSyncService;
   }
 
   @Override
   public CompletableFuture<ScalacOptionsResult> buildTargetScalacOptions(
-      ScalacOptionsParams scalacOptionsParams) {
-    return serverRequestHelpers.executeCommand(
-        "buildTargetScalacOptions",
-        () -> projectSyncService.buildTargetScalacOptions(scalacOptionsParams));
+      ScalacOptionsParams params) {
+    return runner.runCommand(
+        "buildTargetScalacOptions", projectSyncService::buildTargetScalacOptions, params);
   }
 
   @Override
   public CompletableFuture<ScalaTestClassesResult> buildTargetScalaTestClasses(
-      ScalaTestClassesParams scalaTestClassesParams) {
-    return serverRequestHelpers.executeCommand(
-        "buildTargetScalaTestClasses",
-        () -> projectSyncService.buildTargetScalaTestClasses(scalaTestClassesParams));
+      ScalaTestClassesParams params) {
+    return runner.runCommand(
+        "buildTargetScalaTestClasses", projectSyncService::buildTargetScalaTestClasses, params);
   }
 
   @Override
   public CompletableFuture<ScalaMainClassesResult> buildTargetScalaMainClasses(
-      ScalaMainClassesParams scalaMainClassesParams) {
-    return serverRequestHelpers.executeCommand(
-        "buildTargetScalaMainClasses",
-        () -> projectSyncService.buildTargetScalaMainClasses(scalaMainClassesParams));
+      ScalaMainClassesParams params) {
+    return runner.runCommand(
+        "buildTargetScalaMainClasses", projectSyncService::buildTargetScalaMainClasses, params);
   }
 }

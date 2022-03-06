@@ -24,12 +24,11 @@ public class CppBuildServerService {
     this.bazelBspAspectsManager = bazelBspAspectsManager;
   }
 
-  public Either<ResponseError, CppOptionsResult> buildTargetCppOptions(
+  public CppOptionsResult buildTargetCppOptions(
       CppOptionsParams cppOptionsParams) {
     List<CppOptionsItem> items =
         cppOptionsParams.getTargets().stream().map(this::getOptions).collect(Collectors.toList());
-    CppOptionsResult cppOptionsResult = new CppOptionsResult(items);
-    return Either.forRight(cppOptionsResult);
+    return new CppOptionsResult(items);
   }
 
   private CppOptionsItem getOptions(BuildTargetIdentifier buildTargetIdentifier) {

@@ -23,32 +23,24 @@ import ch.epfl.scala.bsp4j.TestParams;
 import ch.epfl.scala.bsp4j.TestResult;
 import ch.epfl.scala.bsp4j.WorkspaceBuildTargetsResult;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.eclipse.lsp4j.jsonrpc.messages.Either;
-import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
-import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
 import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerLifetime;
-import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerRequestHelpers;
+import org.jetbrains.bsp.bazel.server.bsp.BspRequestsRunner;
 import org.jetbrains.bsp.bazel.server.sync.ExecuteService;
 import org.jetbrains.bsp.bazel.server.sync.ProjectSyncService;
 
 public class BuildServerImpl implements BuildServer {
 
-  private static final Logger LOGGER = LogManager.getLogger(BuildServerImpl.class);
-
-  private final BazelBspServerRequestHelpers serverRequestHelpers;
+  private final BspRequestsRunner runner;
   private final ProjectSyncService projectSyncService;
   private final BazelBspServerLifetime serverLifetime;
   private final ExecuteService executeService;
 
   public BuildServerImpl(
-      BazelBspServerRequestHelpers serverRequestHelpers,
+      BspRequestsRunner runner,
       ProjectSyncService projectSyncService,
       BazelBspServerLifetime serverLifetime,
       ExecuteService executeService) {
-    this.serverRequestHelpers = serverRequestHelpers;
+    this.runner = runner;
     this.projectSyncService = projectSyncService;
     this.serverLifetime = serverLifetime;
     this.executeService = executeService;
@@ -57,130 +49,90 @@ public class BuildServerImpl implements BuildServer {
   @Override
   public CompletableFuture<InitializeBuildResult> buildInitialize(
       InitializeBuildParams initializeBuildParams) {
-    LOGGER.info("buildInitialize call with param: {}", initializeBuildParams);
-    return processBuildInitialize("buildInitialize", projectSyncService::initialize);
-  }
-
-  private <T> CompletableFuture<T> processBuildInitialize(
-      String methodName, Supplier<Either<ResponseError, T>> request) {
-    if (serverLifetime.isFinished()) {
-      return serverRequestHelpers.completeExceptionally(
-          methodName,
-          new ResponseError(
-              ResponseErrorCode.serverErrorEnd, "Server has already shutdown!", false));
-    }
-
-    return serverRequestHelpers.getValue(methodName, request);
+    return runner.runCommand(
+        "buildInitialize", projectSyncService::initialize, runner::serverIsNotFinished);
   }
 
   @Override
   public void onBuildInitialized() {
-    LOGGER.info("onBuildInitialized call");
-
-    serverLifetime.setInitializedComplete();
+    runner.runCommand("onBuildInitialized", serverLifetime::setInitializedComplete);
   }
 
   @Override
   public CompletableFuture<Object> buildShutdown() {
-    LOGGER.info("buildShutdown call");
-    return processBuildShutdown("buildShutdown", this::handleBuildShutdown);
-  }
-
-  private <T> CompletableFuture<T> processBuildShutdown(
-      String methodName, Supplier<Either<ResponseError, T>> request) {
-    if (!serverLifetime.isInitialized()) {
-      return serverRequestHelpers.completeExceptionally(
-          methodName,
-          new ResponseError(
-              ResponseErrorCode.serverErrorEnd, "Server has not been initialized yet!", false));
-    }
-
-    return serverRequestHelpers.getValue(methodName, request);
-  }
-
-  private Either<ResponseError, Object> handleBuildShutdown() {
-    serverLifetime.setFinishedComplete();
-    return Either.forRight(new Object());
+    return runner.runCommand(
+        "buildShutdown",
+        () -> {
+          serverLifetime.setFinishedComplete();
+          return new Object();
+        },
+        runner::serverIsInitialized);
   }
 
   @Override
   public void onBuildExit() {
-    LOGGER.info("onBuildExit call");
-    serverLifetime.forceFinish();
+    runner.runCommand("onBuildExit", serverLifetime::forceFinish);
   }
 
   @Override
   public CompletableFuture<WorkspaceBuildTargetsResult> workspaceBuildTargets() {
-    LOGGER.info("workspaceBuildTargets call");
-    return serverRequestHelpers.executeCommand(
-        "workspaceBuildTargets", projectSyncService::workspaceBuildTargets);
+    return runner.runCommand("workspaceBuildTargets", projectSyncService::workspaceBuildTargets);
   }
 
   @Override
   public CompletableFuture<Object> workspaceReload() {
-    return serverRequestHelpers.executeCommand(
-        "workspaceReload", projectSyncService::workspaceReload);
+    return runner.runCommand("workspaceReload", projectSyncService::workspaceReload);
   }
 
   @Override
-  public CompletableFuture<SourcesResult> buildTargetSources(SourcesParams sourcesParams) {
-    LOGGER.info("buildTargetSources call with param: {}", sourcesParams);
-    return serverRequestHelpers.executeCommand(
-        "buildTargetSources", () -> projectSyncService.buildTargetSources(sourcesParams));
+  public CompletableFuture<SourcesResult> buildTargetSources(SourcesParams params) {
+    return runner.runCommand("buildTargetSources", projectSyncService::buildTargetSources, params);
   }
 
   @Override
   public CompletableFuture<InverseSourcesResult> buildTargetInverseSources(
-      InverseSourcesParams inverseSourcesParams) {
-    return serverRequestHelpers.executeCommand(
-        "buildTargetInverseSources",
-        () -> projectSyncService.buildTargetInverseSources(inverseSourcesParams));
+      InverseSourcesParams params) {
+    return runner.runCommand(
+        "buildTargetInverseSources", projectSyncService::buildTargetInverseSources, params);
   }
 
   @Override
   public CompletableFuture<DependencySourcesResult> buildTargetDependencySources(
-      DependencySourcesParams dependencySourcesParams) {
-    return serverRequestHelpers.executeCommand(
-        "buildTargetDependencySources",
-        () -> projectSyncService.buildTargetDependencySources(dependencySourcesParams));
+      DependencySourcesParams params) {
+    return runner.runCommand(
+        "buildTargetDependencySources", projectSyncService::buildTargetDependencySources, params);
   }
 
   @Override
-  public CompletableFuture<ResourcesResult> buildTargetResources(ResourcesParams resourcesParams) {
-    return serverRequestHelpers.executeCommand(
-        "buildTargetResources", () -> projectSyncService.buildTargetResources(resourcesParams));
+  public CompletableFuture<ResourcesResult> buildTargetResources(ResourcesParams params) {
+    return runner.runCommand(
+        "buildTargetResources", projectSyncService::buildTargetResources, params);
   }
 
   @Override
-  public CompletableFuture<CompileResult> buildTargetCompile(CompileParams compileParams) {
-    return serverRequestHelpers.executeCommand(
-        "buildTargetCompile", () -> executeService.compile(compileParams));
+  public CompletableFuture<CompileResult> buildTargetCompile(CompileParams params) {
+    return runner.runCommand("buildTargetCompile", executeService::compile, params);
   }
 
   @Override
-  public CompletableFuture<TestResult> buildTargetTest(TestParams testParams) {
-    return serverRequestHelpers.executeCommand(
-        "buildTargetTest", () -> executeService.test(testParams));
+  public CompletableFuture<TestResult> buildTargetTest(TestParams params) {
+    return runner.runCommand("buildTargetTest", executeService::test, params);
   }
 
   @Override
-  public CompletableFuture<RunResult> buildTargetRun(RunParams runParams) {
-    return serverRequestHelpers.executeCommand(
-        "buildTargetRun", () -> executeService.run(runParams));
+  public CompletableFuture<RunResult> buildTargetRun(RunParams params) {
+    return runner.runCommand("buildTargetRun", executeService::run, params);
   }
 
   @Override
-  public CompletableFuture<CleanCacheResult> buildTargetCleanCache(
-      CleanCacheParams cleanCacheParams) {
-    return serverRequestHelpers.executeCommand(
-        "buildTargetCleanCache", () -> executeService.clean(cleanCacheParams));
+  public CompletableFuture<CleanCacheResult> buildTargetCleanCache(CleanCacheParams params) {
+    return runner.runCommand("buildTargetCleanCache", executeService::clean, params);
   }
 
   @Override
   public CompletableFuture<DependencyModulesResult> buildTargetDependencyModules(
       DependencyModulesParams params) {
-    return serverRequestHelpers.executeCommand(
-        "buildTargetDependencyModules",
-        () -> projectSyncService.buildTargetDependencyModules(params));
+    return runner.runCommand(
+        "buildTargetDependencyModules", projectSyncService::buildTargetDependencyModules, params);
   }
 }

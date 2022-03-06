@@ -16,7 +16,7 @@ import ch.epfl.scala.bsp4j.TestResult;
 import io.vavr.collection.Set;
 import java.util.Collections;
 import java.util.List;
-import org.eclipse.lsp4j.jsonrpc.messages.Either;
+import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
 import org.jetbrains.bsp.bazel.bazelrunner.BazelRunner;
@@ -40,18 +40,18 @@ public class ExecuteService {
     this.bazelRunner = bazelRunner;
   }
 
-  public Either<ResponseError, CompileResult> compile(CompileParams params) {
+  public CompileResult compile(CompileParams params) {
     var targets = selectTargets(params.getTargets());
     var result = build(targets);
-    return Either.forRight(new CompileResult(result.getStatusCode()));
+    return new CompileResult(result.getStatusCode());
   }
 
-  public Either<ResponseError, TestResult> test(TestParams params) {
+  public TestResult test(TestParams params) {
     var targets = selectTargets(params.getTargets());
     var result = build(targets);
 
     if (result.getStatusCode() != StatusCode.OK) {
-      return Either.forRight(new TestResult(result.getStatusCode()));
+      return new TestResult(result.getStatusCode());
     }
 
     result =
@@ -63,14 +63,14 @@ public class ExecuteService {
             .executeBazelBesCommand()
             .waitAndGetResult();
 
-    return Either.forRight(new TestResult(result.getStatusCode()));
+    return new TestResult(result.getStatusCode());
   }
 
-  public Either<ResponseError, RunResult> run(RunParams params) {
+  public RunResult run(RunParams params) {
     var targets = selectTargets(List.of(params.getTarget()));
 
     if (targets.isEmpty()) {
-      return Either.forLeft(
+      throw new ResponseErrorException(
           new ResponseError(
               ResponseErrorCode.InvalidRequest,
               "No supported target found for " + params.getTarget().getUri(),
@@ -82,7 +82,7 @@ public class ExecuteService {
     var result = build(targets);
 
     if (result.getStatusCode() != StatusCode.OK) {
-      return Either.forRight(new RunResult(result.getStatusCode()));
+      return new RunResult(result.getStatusCode());
     }
 
     var bazelProcessResult =
@@ -94,15 +94,14 @@ public class ExecuteService {
             .executeBazelBesCommand()
             .waitAndGetResult();
 
-    return Either.forRight(new RunResult(bazelProcessResult.getStatusCode()));
+    return new RunResult(bazelProcessResult.getStatusCode());
   }
 
-  public Either<ResponseError, CleanCacheResult> clean(CleanCacheParams params) {
+  public CleanCacheResult clean(CleanCacheParams params) {
     var bazelResult =
         bazelRunner.commandBuilder().clean().executeBazelBesCommand().waitAndGetResult();
 
-    var result = new CleanCacheResult(bazelResult.getStdout(), true);
-    return Either.forRight(result);
+    return new CleanCacheResult(bazelResult.getStdout(), true);
   }
 
   private BazelProcessResult build(Set<BuildTargetIdentifier> bspIds) {

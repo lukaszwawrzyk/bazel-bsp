@@ -14,9 +14,9 @@ import org.jetbrains.bsp.bazel.bazelrunner.BazelRunner;
 import org.jetbrains.bsp.bazel.bazelrunner.data.BazelData;
 import org.jetbrains.bsp.bazel.server.bep.BepServer;
 import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerLifetime;
-import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerRequestHelpers;
 import org.jetbrains.bsp.bazel.server.bsp.BspImplementationHub;
 import org.jetbrains.bsp.bazel.server.bsp.BspIntegrationData;
+import org.jetbrains.bsp.bazel.server.bsp.BspRequestsRunner;
 import org.jetbrains.bsp.bazel.server.bsp.config.BazelBspServerConfig;
 import org.jetbrains.bsp.bazel.server.bsp.impl.BuildServerImpl;
 import org.jetbrains.bsp.bazel.server.bsp.impl.CppBuildServerImpl;
@@ -62,7 +62,7 @@ public class BazelBspServer {
 
   public void startServer(BspIntegrationData bspIntegrationData) {
     var serverLifetime = new BazelBspServerLifetime();
-    var serverRequestHelpers = new BazelBspServerRequestHelpers(serverLifetime);
+    var bspRequestsRunner = new BspRequestsRunner(serverLifetime);
 
     var bazelBspCompilationManager = new BazelBspCompilationManager(bazelRunner, bazelData);
     var internalAspectsResolver =
@@ -90,17 +90,15 @@ public class BazelBspServer {
         new ExecuteService(bazelBspCompilationManager, projectProvider, bazelRunner);
     var cppBuildServerService = new CppBuildServerService(bazelBspAspectsManager);
 
-    JvmBuildServer jvmBuildServer =
-        new JvmBuildServerImpl(projectSyncService, serverRequestHelpers);
+    JvmBuildServer jvmBuildServer = new JvmBuildServerImpl(projectSyncService, bspRequestsRunner);
     ScalaBuildServer scalaBuildServer =
-        new ScalaBuildServerImpl(serverRequestHelpers, projectSyncService);
+        new ScalaBuildServerImpl(bspRequestsRunner, projectSyncService);
     JavaBuildServer javaBuildServer =
-        new JavaBuildServerImpl(projectSyncService, serverRequestHelpers);
+        new JavaBuildServerImpl(projectSyncService, bspRequestsRunner);
     CppBuildServer cppBuildServer =
-        new CppBuildServerImpl(cppBuildServerService, serverRequestHelpers);
+        new CppBuildServerImpl(cppBuildServerService, bspRequestsRunner);
     BuildServer buildServer =
-        new BuildServerImpl(
-            serverRequestHelpers, projectSyncService, serverLifetime, executeService);
+        new BuildServerImpl(bspRequestsRunner, projectSyncService, serverLifetime, executeService);
 
     this.bspImplementationHub =
         new BspImplementationHub(
