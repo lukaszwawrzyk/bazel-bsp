@@ -45,7 +45,7 @@ import org.jetbrains.bsp.bazel.server.bsp.services.CppBuildServerService;
 import org.jetbrains.bsp.bazel.server.sync.ExecuteService;
 import org.jetbrains.bsp.bazel.server.sync.ProjectSyncService;
 
-public class BspImplementationHub
+public class BspServerApi
     implements BuildServer, JvmBuildServer, ScalaBuildServer, JavaBuildServer, CppBuildServer {
 
   private final BazelBspServerLifetime serverLifetime;
@@ -54,7 +54,7 @@ public class BspImplementationHub
   private final ExecuteService executeService;
   private final CppBuildServerService cppBuildServerService;
 
-  public BspImplementationHub(
+  public BspServerApi(
       BazelBspServerLifetime serverLifetime,
       BspRequestsRunner runner,
       ProjectSyncService projectSyncService,

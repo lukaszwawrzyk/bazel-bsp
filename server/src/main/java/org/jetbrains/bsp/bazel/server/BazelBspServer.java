@@ -9,9 +9,9 @@ import org.jetbrains.bsp.bazel.bazelrunner.BazelRunner;
 import org.jetbrains.bsp.bazel.bazelrunner.data.BazelData;
 import org.jetbrains.bsp.bazel.server.bep.BepServer;
 import org.jetbrains.bsp.bazel.server.bsp.BazelBspServerLifetime;
-import org.jetbrains.bsp.bazel.server.bsp.BspImplementationHub;
 import org.jetbrains.bsp.bazel.server.bsp.BspIntegrationData;
 import org.jetbrains.bsp.bazel.server.bsp.BspRequestsRunner;
+import org.jetbrains.bsp.bazel.server.bsp.BspServerApi;
 import org.jetbrains.bsp.bazel.server.bsp.config.BazelBspServerConfig;
 import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspAspectsManager;
 import org.jetbrains.bsp.bazel.server.bsp.managers.BazelBspCompilationManager;
@@ -39,7 +39,7 @@ public class BazelBspServer {
   private final BazelRunner bazelRunner;
   private final BazelData bazelData;
 
-  private BspImplementationHub bspImplementationHub;
+  private BspServerApi bspServerApi;
   private BazelBspCompilationManager bazelBspCompilationManager;
   private ProjectProvider projectProvider;
 
@@ -80,8 +80,8 @@ public class BazelBspServer {
         new ExecuteService(bazelBspCompilationManager, projectProvider, bazelRunner);
     var cppBuildServerService = new CppBuildServerService(bazelBspAspectsManager);
 
-    this.bspImplementationHub =
-        new BspImplementationHub(
+    this.bspServerApi =
+        new BspServerApi(
             serverLifetime,
             bspRequestsRunner,
             projectSyncService,
@@ -97,7 +97,7 @@ public class BazelBspServer {
             .traceMessages(bspIntegrationData.getTraceWriter())
             .setOutput(bspIntegrationData.getStdout())
             .setInput(bspIntegrationData.getStdin())
-            .setLocalService(bspImplementationHub)
+            .setLocalService(bspServerApi)
             .setRemoteInterface(BuildClient.class)
             .setExecutorService(bspIntegrationData.getExecutor())
             .create();
