@@ -22,23 +22,23 @@ public class BspRequestsRunner {
     this.serverLifetime = serverLifetime;
   }
 
-  public <T, R> CompletableFuture<R> runCommand(String methodName, Function<T, R> function, T arg) {
+  public <T, R> CompletableFuture<R> handleRequest(String methodName, Function<T, R> function, T arg) {
     LOGGER.info("{} call with param: {}", methodName, arg);
     return this.<R>serverIsRunning(methodName)
         .getOrElse(() -> runAsync(methodName, () -> function.apply(arg)));
   }
 
-  public <R> CompletableFuture<R> runCommand(String methodName, Supplier<R> supplier) {
+  public <R> CompletableFuture<R> handleRequest(String methodName, Supplier<R> supplier) {
     LOGGER.info("{} call", methodName);
     return this.<R>serverIsRunning(methodName).getOrElse(() -> runAsync(methodName, supplier));
   }
 
-  public void runLocally(String methodName, Runnable runnable) {
+  public void handleNotification(String methodName, Runnable runnable) {
     LOGGER.info("{} call", methodName);
     runnable.run();
   }
 
-  public <R> CompletableFuture<R> runCommand(
+  public <R> CompletableFuture<R> handleRequest(
       String methodName,
       Supplier<R> supplier,
       Function<String, Option<CompletableFuture<R>>> precondition) {
