@@ -2,7 +2,6 @@ package org.jetbrains.bsp.bazel.server.bsp;
 
 import io.vavr.control.Option;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.logging.log4j.LogManager;
@@ -22,7 +21,8 @@ public class BspRequestsRunner {
     this.serverLifetime = serverLifetime;
   }
 
-  public <T, R> CompletableFuture<R> handleRequest(String methodName, Function<T, R> function, T arg) {
+  public <T, R> CompletableFuture<R> handleRequest(
+      String methodName, Function<T, R> function, T arg) {
     LOGGER.info("{} call with param: {}", methodName, arg);
     return this.<R>serverIsRunning(methodName)
         .getOrElse(() -> runAsync(methodName, () -> function.apply(arg)));
