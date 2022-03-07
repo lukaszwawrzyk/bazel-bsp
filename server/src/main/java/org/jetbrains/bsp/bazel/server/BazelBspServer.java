@@ -54,7 +54,7 @@ public class BazelBspServer {
     var serverLifetime = new BazelBspServerLifetime();
     var bspRequestsRunner = new BspRequestsRunner(serverLifetime);
 
-    var bazelBspCompilationManager = new BazelBspCompilationManager(bazelRunner, bazelData);
+    this.bazelBspCompilationManager = new BazelBspCompilationManager(bazelRunner, bazelData);
     var internalAspectsResolver =
         new InternalAspectsResolver(
             bazelData.getBspProjectRoot(), Paths.get(bazelData.getWorkspaceRoot()));
