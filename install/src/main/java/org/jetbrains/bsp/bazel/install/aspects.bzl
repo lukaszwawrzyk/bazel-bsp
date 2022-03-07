@@ -462,7 +462,7 @@ def _bsp_target_info_aspect_impl(target, ctx):
     scala_toolchain_info = extract_scala_toolchain_info(target, ctx, output_groups)
     scala_target_info = extract_scala_info(target, ctx, output_groups)
     java_toolchain_info, java_toolchain_info_exported = extract_java_toolchain(target, ctx, dep_targets)
-    java_runtime_info, java_runtime_info_exported = extract_java_runtime(target, ctx, result, dep_targets)
+    java_runtime_info, java_runtime_info_exported = extract_java_runtime(target, ctx, dep_targets)
 
     result = dict(
         id = str(target.label),

@@ -2,6 +2,7 @@ package org.jetbrains.bsp.bazel.server.bsp;
 
 import io.vavr.control.Option;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.logging.log4j.LogManager;
@@ -32,15 +33,9 @@ public class BspRequestsRunner {
     return this.<R>serverIsRunning(methodName).getOrElse(() -> runAsync(methodName, supplier));
   }
 
-  public CompletableFuture<Void> runCommand(String methodName, Runnable runnable) {
+  public void runLocally(String methodName, Runnable runnable) {
     LOGGER.info("{} call", methodName);
-    Supplier<Void> runnableAsSupplier =
-        () -> {
-          runnable.run();
-          return null;
-        };
-    return this.<Void>serverIsRunning(methodName)
-        .getOrElse(() -> runAsync(methodName, runnableAsSupplier));
+    runnable.run();
   }
 
   public <R> CompletableFuture<R> runCommand(

@@ -76,7 +76,7 @@ public class BspServerApi
 
   @Override
   public void onBuildInitialized() {
-    runner.runCommand("onBuildInitialized", serverLifetime::setInitializedComplete);
+    runner.runLocally("onBuildInitialized", serverLifetime::setInitializedComplete);
   }
 
   @Override
@@ -92,7 +92,7 @@ public class BspServerApi
 
   @Override
   public void onBuildExit() {
-    runner.runCommand("onBuildExit", serverLifetime::forceFinish);
+    runner.runLocally("onBuildExit", serverLifetime::forceFinish);
   }
 
   @Override
