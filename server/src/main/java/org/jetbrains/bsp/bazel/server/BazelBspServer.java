@@ -71,7 +71,8 @@ public class BazelBspServer {
         new BazelProjectMapper(languagePluginsService, bazelPathsResolver, targetKindResolver);
     var projectViewProvider = new ProjectViewProvider(bazelBspServerConfig.getProjectView());
     var projectResolver =
-        new ProjectResolver(bazelBspAspectsManager, projectViewProvider, bazelProjectMapper);
+        new ProjectResolver(
+            bazelBspAspectsManager, projectViewProvider, bazelProjectMapper, buildClientLogger);
     this.projectProvider = new ProjectProvider(projectResolver);
     var bspProjectMapper = new BspProjectMapper(languagePluginsService);
     var projectSyncService = new ProjectSyncService(bspProjectMapper, projectProvider);

@@ -6,7 +6,9 @@ java_library(
     visibility = ["//visibility:public"],
     deps = [
         "//bazelrunner",
+        "//bazelrunner/src/main/java/org/jetbrains/bsp/bazel/bazelrunner/utils",
         "//commons",
+        "//logger",
         "//executioncontext/projectview:model",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bep",
         "//server/src/main/java/org/jetbrains/bsp/bazel/server/bsp/managers",
