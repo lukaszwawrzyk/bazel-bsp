@@ -21,4 +21,7 @@ abstract class LanguagePlugin<T : LanguageData> {
         applyModuleData(moduleData as T, buildTarget)
 
     protected abstract fun applyModuleData(moduleData: T, buildTarget: BuildTarget)
+
+    open val rewriteService: RewriteService = RewriteService()
+
 }

@@ -14,6 +14,7 @@ import org.jetbrains.bsp.bazel.server.sync.BspMappings
 import org.jetbrains.bsp.bazel.server.sync.dependencytree.DependencyTree
 import org.jetbrains.bsp.bazel.server.sync.languages.JVMLanguagePluginParser
 import org.jetbrains.bsp.bazel.server.sync.languages.LanguagePlugin
+import org.jetbrains.bsp.bazel.server.sync.languages.RewriteService
 import org.jetbrains.bsp.bazel.server.sync.languages.java.JavaLanguagePlugin
 import org.jetbrains.bsp.bazel.server.sync.languages.java.JavaModule
 import org.jetbrains.bsp.bazel.server.sync.model.Language
@@ -28,6 +29,7 @@ class ScalaLanguagePlugin(
 ) : LanguagePlugin<ScalaModule>() {
 
     private var scalaSdk: ScalaSdk? = null
+    override val rewriteService = ScalaRewriteService(javaLanguagePlugin.rewriteService)
 
     override fun prepareSync(targets: Sequence<BspTargetInfo.TargetInfo>) {
         scalaSdk = ScalaSdkResolver(bazelPathsResolver).resolve(targets)

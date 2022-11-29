@@ -15,6 +15,7 @@ import org.jetbrains.bsp.bazel.server.sync.BspMappings
 import org.jetbrains.bsp.bazel.server.sync.dependencytree.DependencyTree
 import org.jetbrains.bsp.bazel.server.sync.languages.JVMLanguagePluginParser
 import org.jetbrains.bsp.bazel.server.sync.languages.LanguagePlugin
+import org.jetbrains.bsp.bazel.server.sync.languages.RewriteService
 import org.jetbrains.bsp.bazel.server.sync.model.Module
 import java.net.URI
 import java.nio.file.Path
@@ -24,8 +25,8 @@ class JavaLanguagePlugin(
     private val jdkResolver: JdkResolver,
     private val bazelInfo: BazelInfo
 ) : LanguagePlugin<JavaModule>() {
-    private val environment = System.getenv()
     private var jdk: Jdk? = null
+    override val rewriteService = JavaRewriteService()
 
     override fun prepareSync(targets: Sequence<TargetInfo>) {
         jdk = jdkResolver.resolve(targets)

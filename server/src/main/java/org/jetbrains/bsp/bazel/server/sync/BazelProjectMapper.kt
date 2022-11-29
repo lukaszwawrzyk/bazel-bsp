@@ -52,9 +52,9 @@ class BazelProjectMapper(
             .map { createModule(it, dependencyTree) }
             .filterNot { it.tags.contains(Tag.NO_IDE) }
             .toList()
+            .let { languagePluginsService.rewriteModules(it) }
             .asSequence()
     }
-
 
     private fun createModule(
         target: TargetInfo, dependencyTree: DependencyTree
